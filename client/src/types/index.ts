@@ -29,16 +29,29 @@ export interface LoggedSet {
   reps: number | string;      // Use string to allow empty input initially
   rpe?: number | string;     // Rating of Perceived Exertion (optional)
   // Add notes field if desired later
+  // Timing fields
+  startTime?: number; // Timestamp when set becomes active (or last resumed)
+  elapsedTime_ms: number; // Accumulated time spent actively on this set
+  status: 'pending' | 'active' | 'paused' | 'completed'; // Status of the set
+  endTime?: number; // Timestamp when set was marked 'completed'
 }
 
 export interface LoggedExercise {
   exercise_id: string; // Link back to the original exercise definition
   name: string;        // For display convenience
   sets: LoggedSet[];   // Array to hold logged data for each set performed
+  // Timing fields for the exercise
+  startTime?: number; // Timestamp when the first set of this exercise becomes active
+  elapsedTime_ms: number; // Accumulated time for the entire exercise (span time)
+  status: 'pending' | 'active' | 'paused' | 'completed'; // Status of the exercise
+  activeWorkTime_ms?: number; // to store sum of set active times
 }
 
 export interface ActiveWorkoutState {
-  startTime: number; // Timestamp (Date.now()) when workout started
+  startTime: number; // Timestamp (Date.now()) when workout started (absolute start)
+  currentSessionStartTime?: number; // Timestamp of when current active period started (for workout pause/resume)
+  totalActiveDuration_ms: number; // Accumulated active time for the entire workout
+  isPaused: boolean; // Workout pause state
   routine: WorkoutRoutine; // The original routine being performed
   currentExerciseIndex: number;
   loggedData: LoggedExercise[]; // The data being logged by the user
@@ -47,8 +60,10 @@ export interface ActiveWorkoutState {
 export interface WorkoutLoggingProps {
     activeWorkout: ActiveWorkoutState;
     onUpdateLog: (exerciseIndex: number, setIndex: number, field: keyof LoggedSet, value: number | string) => void;
+    onUpdateSetTimer: (exerciseIndex: number, setIndex: number, action: 'start' | 'pause' | 'reset' | 'finish') => void;
     onNavigateExercise: (direction: 'next' | 'prev') => void;
     onFinishWorkout: () => Promise<void>; // Make async to handle API call
     onCancelWorkout: () => void;
-    isFinishing: boolean; // Loading state for the finish button
+    isFinishing: boolean;
+    activeSetInfo: { exerciseIndex: number; setIndex: number } | null;
 }

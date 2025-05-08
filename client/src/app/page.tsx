@@ -22,6 +22,9 @@ export default function HomePage() {
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkoutState | null>(null);
   const [isFinishing, setIsFinishing] = useState(false); // Loading state for finish button
 
+  // State to track the currently active set
+  const [activeSetInfo, setActiveSetInfo] = useState<{ exerciseIndex: number; setIndex: number } | null>(null);
+
 
   // --- Local Storage Effect ---
   useEffect(() => {
@@ -164,16 +167,25 @@ export default function HomePage() {
         weight_kg: '',
         reps: '',
         rpe: '',
+        startTime: undefined,
+        elapsedTime_ms: 0,
+        status: 'pending',
+        endTime: undefined,
       })),
+      elapsedTime_ms: 0,
+      status: 'pending',
     }));
 
     setActiveWorkout({
       startTime: Date.now(),
+      currentSessionStartTime: Date.now(),
       routine: routineToStart,
       currentExerciseIndex: 0,
       loggedData: initialLoggedData,
+      totalActiveDuration_ms: 0,
+      isPaused: false,
     });
-    console.log("Workout started.");
+    console.log("Workout started, initial loggedData:", initialLoggedData);
   };
 
   const handleUpdateLog = useCallback((exerciseIndex: number, setIndex: number, field: keyof LoggedSet, value: number | string) => {
@@ -199,6 +211,123 @@ export default function HomePage() {
     });
   }, []);
 
+  const handleUpdateSetTimer = useCallback((exerciseIndex: number, setIndex: number, action: 'start' | 'pause' | 'reset' | 'finish') => {
+    setActiveWorkout(prevActiveWorkout => {
+      if (!prevActiveWorkout) return null;
+
+      const newLoggedData = JSON.parse(JSON.stringify(prevActiveWorkout.loggedData));
+      const set = newLoggedData[exerciseIndex]?.sets[setIndex];
+      const currentExercise = newLoggedData[exerciseIndex];
+
+
+      if (!set || !currentExercise) {
+        console.error("Set or Exercise not found for timer update:", { exerciseIndex, setIndex });
+        return prevActiveWorkout;
+      }
+
+      const now = Date.now();
+      let newActiveSetInfo = activeSetInfo;
+
+      // Prevent starting a NEW set if another set is ALREADY active
+      // This situation will generally not happen since UI already prevents it.
+      if (action === 'start' && activeSetInfo &&
+          (activeSetInfo.exerciseIndex !== exerciseIndex || activeSetInfo.setIndex !== setIndex) &&
+          newLoggedData[activeSetInfo.exerciseIndex]?.sets[activeSetInfo.setIndex]?.status === 'active') {
+        
+        console.warn(`Action blocked: Cannot start Set ${setIndex + 1} in Ex ${exerciseIndex + 1} because Set ${activeSetInfo.setIndex + 1} in Ex ${activeSetInfo.exerciseIndex + 1} is already active.`);
+        toast.error("Another set is currently active. Please pause or finish it first.");
+        return prevActiveWorkout;
+      }
+
+      switch (action) {
+        case 'start': // Can be a fresh start or resume
+          if (set.status === 'pending' || set.status === 'paused') {
+            const wasPending = set.status === 'pending';
+            if (wasPending) {
+              set.elapsedTime_ms = 0;
+            }
+            set.status = 'active';
+            set.startTime = now;
+            newActiveSetInfo = { exerciseIndex, setIndex };
+            console.log(`Set ${setIndex + 1} Ex ${exerciseIndex + 1} timer started/resumed. ActiveSet:`, newActiveSetInfo);
+
+            // Implicitly start exercise timer if it is not already active
+            if (wasPending && currentExercise.status === 'pending') {
+              currentExercise.startTime = now; // Use 'now' as it's the true start of activity
+              currentExercise.status = 'active';
+              console.log(`Exercise ${exerciseIndex + 1} implicitly started. Start time: ${currentExercise.startTime}`);
+            }
+          }
+          break;
+        case 'pause':
+          if (set.status === 'active' && set.startTime) {
+            set.elapsedTime_ms += (now - set.startTime);
+            set.startTime = undefined;
+            set.status = 'paused';
+            if (activeSetInfo && activeSetInfo.exerciseIndex === exerciseIndex && activeSetInfo.setIndex === setIndex) {
+              newActiveSetInfo = null;
+            }
+            console.log(`Set ${setIndex + 1} timer paused. Accumulated time: ${set.elapsedTime_ms}`);
+          }
+          break;
+        case 'finish':
+          if (set.status === 'active' && set.startTime) {
+            set.elapsedTime_ms += (now - set.startTime);
+          }
+          // If paused and then finished, elapsedTime_ms is already up-to-date
+          set.startTime = undefined;
+          set.status = 'completed';
+          set.endTime = now;
+          if (activeSetInfo && activeSetInfo.exerciseIndex === exerciseIndex && activeSetInfo.setIndex === setIndex) {
+            newActiveSetInfo = null;
+          }
+          console.log(`Set ${setIndex + 1} Ex ${exerciseIndex + 1} timer finished. End time: ${set.endTime}, Total set time: ${set.elapsedTime_ms}`);
+          break;
+        case 'reset':
+          set.elapsedTime_ms = 0;
+          set.startTime = undefined;
+          set.endTime = undefined; // Clear end time on reset
+          set.status = 'pending';
+          if (activeSetInfo && activeSetInfo.exerciseIndex === exerciseIndex && activeSetInfo.setIndex === setIndex) {
+            newActiveSetInfo = null;
+          }
+          console.log(`Set ${setIndex + 1} timer reset.`);
+          break;
+      }
+      const allSetsInExerciseCompleted = currentExercise.sets.every((s: LoggedSet) => s.status === 'completed');
+      
+      if (allSetsInExerciseCompleted && currentExercise.status === 'active') {
+        currentExercise.status = 'completed';
+        // Update the activeWorkTime_ms for the exercise by summing up the active times of all sets
+        currentExercise.activeWorkTime_ms = currentExercise.sets.reduce((sum: number, set: LoggedSet) => {
+          return sum + (set.elapsedTime_ms || 0);
+        }, 0);
+        currentExercise.elapsedTime_ms = currentExercise.activeWorkTime_ms;
+        console.log(`Exercise ${exerciseIndex + 1} completed. Active work time: ${currentExercise.activeWorkTime_ms}ms, Total elapsed time: ${currentExercise.elapsedTime_ms}ms`);
+
+        // Find the latest endTime among all sets of this exercise
+        let maxSetEndTime = 0;
+        currentExercise.sets.forEach((s: LoggedSet) => {
+          if (s.endTime && s.endTime > maxSetEndTime) {
+            maxSetEndTime = s.endTime;
+          }
+        });
+
+        if (currentExercise.startTime && maxSetEndTime > 0) {
+          currentExercise.elapsedTime_ms = maxSetEndTime - currentExercise.startTime;
+          console.log(`Exercise ${exerciseIndex + 1} implicitly completed. Span time (elapsedTime_ms): ${currentExercise.elapsedTime_ms}ms. Started: ${currentExercise.startTime}, Ended: ${maxSetEndTime}`);
+        } else {
+            console.warn(`Exercise ${exerciseIndex + 1} all sets completed, but couldn't calculate span time. StartTime: ${currentExercise.startTime}, MaxSetEndTime: ${maxSetEndTime}`);
+            currentExercise.elapsedTime_ms = 0; // Or handle as error/undefined
+        }
+      }
+      setActiveSetInfo(newActiveSetInfo);
+      console.log("Active set info updated:", newActiveSetInfo);
+      return { ...prevActiveWorkout, loggedData: newLoggedData };
+    });
+  }, [activeSetInfo]);
+
+  // TODO(abhi): Correctly update/clean the duration of each set/exercise/workout.
    const handleFinishWorkout = useCallback(async () => {
     if (!activeWorkout) return;
 
@@ -255,7 +384,7 @@ export default function HomePage() {
     } finally {
       setIsFinishing(false);
     }
-  }, [activeWorkout, fetchInitialWorkout]); // Added fetchInitialWorkout dependency
+  }, [activeWorkout, fetchInitialWorkout]);
 
 
   // --- Render Logic ---
@@ -266,10 +395,12 @@ export default function HomePage() {
         <WorkoutLogging
           activeWorkout={activeWorkout}
           onUpdateLog={handleUpdateLog}
+          onUpdateSetTimer={handleUpdateSetTimer}
           onNavigateExercise={handleNavigateExercise}
           onFinishWorkout={handleFinishWorkout}
           isFinishing={isFinishing}
           onCancelWorkout={handleCancelWorkout}
+          activeSetInfo={activeSetInfo}
         />
       );
     } else if (isLoading) {

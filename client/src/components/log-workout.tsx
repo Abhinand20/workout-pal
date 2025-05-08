@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, ArrowRight, CheckCircle, Loader2, CircleX} from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Loader2, CircleX, Play, Pause, RefreshCcw, TimerOff } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,10 +23,12 @@ import {
 export function WorkoutLogging({
   activeWorkout,
   onUpdateLog,
+  onUpdateSetTimer,
   onNavigateExercise,
   onFinishWorkout,
   isFinishing,
   onCancelWorkout,
+  activeSetInfo,
 }: WorkoutLoggingProps) {
   const { routine, currentExerciseIndex, loggedData } = activeWorkout;
   const currentExercise = routine.routine[currentExerciseIndex];
@@ -35,6 +36,9 @@ export function WorkoutLogging({
 
   const totalExercises = routine.routine.length;
   const progressValue = ((currentExerciseIndex + 1) / totalExercises) * 100;
+
+  // Dummy state to trigger re-renders for live timer updates
+  const [, setTick] = React.useState(0);
 
   const handleInputChange = (
     setIndex: number,
@@ -44,6 +48,34 @@ export function WorkoutLogging({
     // Basic validation/parsing can happen here or in the parent handler
     onUpdateLog(currentExerciseIndex, setIndex, field, value);
   };
+
+  // Timer display and update logic
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Effect to update active timers
+  React.useEffect(() => {
+    let intervalId: NodeJS.Timeout | undefined = undefined;
+    const currentExerciseSets = currentLoggedExercise?.sets;
+
+    if (currentExerciseSets) {
+        const isAnySetAwaitingLiveUpdate = currentExerciseSets.some(set => set.status === 'active');
+        if (isAnySetAwaitingLiveUpdate) {
+            intervalId = setInterval(() => {
+                setTick(prevTick => prevTick + 1); 
+            }, 1000);
+        }
+    }
+    return () => {
+        if (intervalId) {
+            clearInterval(intervalId);
+        }
+    };
+  }, [currentLoggedExercise?.sets, currentExerciseIndex]);
 
   const isLastExercise = currentExerciseIndex === totalExercises - 1;
 
@@ -70,51 +102,144 @@ export function WorkoutLogging({
 
         <CardContent className="pt-6 space-y-4">
           <h3 className="font-semibold mb-3">Log Your Sets:</h3>
-          {currentLoggedExercise.sets.map((set, setIndex) => (
-            <div key={set.set_number} className="grid grid-cols-3 gap-3 items-end border-b pb-3 last:border-b-0">
-              <Label className="col-span-3 text-md font-medium">Set {set.set_number}</Label>
-              <div>
-                <Label htmlFor={`weight-${setIndex}`} className="text-xs text-muted-foreground">Weight (kg)</Label>
-                <Input
-                  id={`weight-${setIndex}`}
-                  type="number"
-                  placeholder={currentExercise.target_weight_kg?.toString() ?? "N/A"}
-                  value={set.weight_kg}
-                  onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
-                  className="mt-1"
-                  min="0"
-                  step="0.5"
-                />
+          {currentLoggedExercise.sets.map((set, setIndex) => {
+            // Determine if this specific set is the globally active one
+            const isThisSetGloballyActive = activeSetInfo?.exerciseIndex === currentExerciseIndex && activeSetInfo?.setIndex === setIndex;
+            // Determine if *any* set is globally active (and it's not this one)
+            const isAnotherSetGloballyActive = activeSetInfo !== null && !isThisSetGloballyActive;
+
+            return (
+              <div key={set.set_number} className="space-y-3 border-b pb-4 mb-4 last:border-b-0 last:pb-0 last:mb-0">
+                <Label className="col-span-3 text-md font-medium">Set {set.set_number}</Label>
+                <div className="grid grid-cols-3 gap-3 items-end">
+                  <div>
+                    <Label htmlFor={`weight-${setIndex}`} className="text-xs text-muted-foreground">Weight (kg)</Label>
+                    <Input
+                      id={`weight-${setIndex}`}
+                      type="number"
+                      placeholder={currentExercise.target_weight_kg?.toString() ?? "N/A"}
+                      value={set.weight_kg}
+                      onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
+                      className="mt-1"
+                      min="0"
+                      step="0.5"
+                      disabled={set.status === 'active' || set.status === 'completed' || isAnotherSetGloballyActive}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`reps-${setIndex}`} className="text-xs text-muted-foreground">Reps</Label>
+                    <Input
+                      id={`reps-${setIndex}`}
+                      type="number"
+                      placeholder={currentExercise.target_reps}
+                      value={set.reps}
+                      onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
+                      className="mt-1"
+                      min="0"
+                      step="1"
+                      disabled={set.status === 'active' || set.status === 'completed' || isAnotherSetGloballyActive}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`rpe-${setIndex}`} className="text-xs text-muted-foreground">RPE (1-10)</Label>
+                    <Input
+                      id={`rpe-${setIndex}`}
+                      type="number"
+                      placeholder="e.g., 8"
+                      value={set.rpe ?? ''}
+                      onChange={(e) => handleInputChange(setIndex, 'rpe', e.target.value)}
+                      className="mt-1"
+                      min="1"
+                      max="10"
+                      step="0.5"
+                      disabled={set.status === 'active' || set.status === 'completed' || isAnotherSetGloballyActive}
+                    />
+                  </div>
+                </div>
+                {/* Timer Display and Controls */}
+                <div className="mt-3 flex flex-col items-start space-y-2">
+                  <div className="text-sm text-muted-foreground">
+                    Set Timer: <span className="font-semibold text-primary">
+                      {set.status === 'active' && set.startTime
+                        ? formatTime(set.elapsedTime_ms + (Date.now() - set.startTime))
+                        : formatTime(set.elapsedTime_ms)}
+                    </span>
+                    {set.status === 'paused' && <span className="text-xs italic ml-1">(Paused)</span>}
+                    {isAnotherSetGloballyActive && set.status !== 'completed' && <span className="text-xs italic ml-1 text-orange-500">(Another set active)</span>}
+                  </div>
+                  <div className="flex space-x-2">
+                    {set.status === 'pending' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onUpdateSetTimer(currentExerciseIndex, setIndex, 'start')}
+                        disabled={isAnotherSetGloballyActive || isFinishing} // Disable if another set is active or workout is finishing
+                      >
+                        <Play className="h-4 w-4 mr-1" /> Start Set
+                      </Button>
+                    )}
+                    {set.status === 'active' && isThisSetGloballyActive && ( // Only show Pause if this specific set is the active one
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onUpdateSetTimer(currentExerciseIndex, setIndex, 'pause')}
+                        disabled={isFinishing}
+                      >
+                        <Pause className="h-4 w-4 mr-1" /> Pause Set
+                      </Button>
+                    )}
+                    {set.status === 'paused' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onUpdateSetTimer(currentExerciseIndex, setIndex, 'start')}
+                        disabled={isAnotherSetGloballyActive || isFinishing} // Disable if another set is active or workout is finishing
+                      >
+                        <Play className="h-4 w-4 mr-1" /> Resume Set
+                      </Button>
+                    )}
+                    {/* Finish Set button logic:
+                        - Show if this set is 'active' AND it's the globally active one
+                        - OR if this set is 'paused' (regardless of global active status, as paused sets can be finished)
+                        - Disable if workout is finishing
+                        - Disable if another set is globally active AND this set is NOT paused (prevents finishing a non-active, non-paused set)
+                    */}
+                    {((set.status === 'active' && isThisSetGloballyActive) || set.status === 'paused') && (
+                        <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => onUpdateSetTimer(currentExerciseIndex, setIndex, 'finish')}
+                            disabled={isFinishing || (isAnotherSetGloballyActive && set.status !== 'paused')}
+                        >
+                            <CheckCircle className="h-4 w-4 mr-1" /> Finish Set
+                        </Button>
+                    )}
+                    {/* Reset Timer button logic:
+                        - Show if set is 'paused', 'completed', or ('pending' AND has some time)
+                        - Disable if another set is globally active 
+                        - Disable if workout is finishing
+                    */}
+                    {(set.status === 'paused' || set.status === 'completed' || (set.status === 'pending' && set.elapsedTime_ms > 0)) && (
+                       <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onUpdateSetTimer(currentExerciseIndex, setIndex, 'reset')}
+                        className="text-destructive hover:text-destructive"
+                        disabled={(isAnotherSetGloballyActive || isFinishing)}
+                       >
+                         <RefreshCcw className="h-4 w-4 mr-1" /> Reset Timer
+                       </Button>
+                    )}
+                     {set.status === 'completed' && (
+                       <Button variant="ghost" size="sm" disabled className="text-green-600">
+                          <TimerOff className="h-4 w-4 mr-1" /> Set Completed
+                       </Button>
+                     )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor={`reps-${setIndex}`} className="text-xs text-muted-foreground">Reps</Label>
-                <Input
-                  id={`reps-${setIndex}`}
-                  type="number"
-                  placeholder={currentExercise.target_reps}
-                  value={set.reps}
-                  onChange={(e) => handleInputChange(setIndex, 'reps', e.target.value)}
-                  className="mt-1"
-                  min="0"
-                  step="1"
-                />
-              </div>
-              <div>
-                <Label htmlFor={`rpe-${setIndex}`} className="text-xs text-muted-foreground">RPE (1-10)</Label>
-                <Input
-                  id={`rpe-${setIndex}`}
-                  type="number"
-                  placeholder="e.g., 8"
-                  value={set.rpe ?? ''}
-                  onChange={(e) => handleInputChange(setIndex, 'rpe', e.target.value)}
-                  className="mt-1"
-                  min="1"
-                  max="10"
-                  step="0.5"
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </CardContent>
 
          <CardFooter className="flex justify-between items-center pt-4 border-t">
