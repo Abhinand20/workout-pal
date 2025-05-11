@@ -8,11 +8,42 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from '@/components/ui/button';
+import { ApiResponse, FetchWorkoutData, FetchWorkoutParams, WorkoutSplit } from '@/types/api';
 
 // Define keys for local storage
 const WORKOUT_STATE_KEY = 'activeWorkoutState';
 const INITIAL_WORKOUT_KEY = 'initialWorkoutData'; 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// Fetch today's workout routine from the API.
+async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRoutine> {
+  // Make the API call and pass in the request params
+  const url = new URL(`${API_URL}/api/workout/today`);
+  url.searchParams.set('split', params.split || '');
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    // If the server responded with an error status (4xx or 5xx)
+    const errorData: ApiResponse<FetchWorkoutData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+    console.error('API Error:', errorData);
+    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+  }
+  const result: ApiResponse<FetchWorkoutData> = await response.json();
+  if (result.success && result.data) {
+    return result.data.workout; // Return the actual workout routine
+  } else if (result.error) {
+    console.error('API returned an error:', result.error.message);
+    throw new Error(result.error.message);
+  } else {
+    console.error('Unexpected API response structure:', result);
+    throw new Error('Unexpected API response structure.');
+  }
+}
 
 export default function HomePage() {
   const [initialWorkoutData, setInitialWorkoutData] = useState<WorkoutRoutine | null>(null);
@@ -122,27 +153,15 @@ export default function HomePage() {
     localStorage.removeItem(INITIAL_WORKOUT_KEY);
     console.log("Attempting to fetch new workout data...");
 
-    // const apiUrl = process.env.NEXT_PUBLIC_API_URL; // Use actual API later
-    // ... (rest of the fetch logic using mock data for now) ...
-
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const mockWorkout: WorkoutRoutine = {
-        date: new Date().toLocaleDateString(),
-        ai_insight: `Mock Insight: Focus on form today! ${Math.random().toFixed(2)}`,
-        routine: [
-          { id: `ex-${Date.now()}-1`, name: "Bench Press (Mock)", target_sets: 3, target_reps: "5-8", target_weight_kg: 60},
-          { id: `ex-${Date.now()}-2`, name: "Overhead Press (Mock)", target_sets: 3, target_reps: "6-10", target_weight_kg: 40},
-          { id: `ex-${Date.now()}-3`, name: "Pull-ups (Mock)", target_sets: 3, target_reps: "Max", rest_period_seconds: 90},
-        ],
-      };
-      console.log("Mock workout data generated:", mockWorkout);
-      setInitialWorkoutData(mockWorkout);
+      // TODO(abhi): Support selecting the workout split (e.g., full body, upper-lower, push-pull-legs)
+      const workout = await fetchTodaysWorkout({split: WorkoutSplit.FULL_BODY});
+      setInitialWorkoutData(workout);
+      console.log("Fetched workout data:", workout);
 
       // Cache the newly fetched data in localStorage
       try {
-          localStorage.setItem(INITIAL_WORKOUT_KEY, JSON.stringify(mockWorkout));
+          localStorage.setItem(INITIAL_WORKOUT_KEY, JSON.stringify(workout));
           console.log("Initial workout data cached in localStorage.");
       } catch (e) {
           console.error("Failed to cache initial workout data:", e);
@@ -336,12 +355,12 @@ export default function HomePage() {
     console.log("Attempting to finish and save workout...");
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL; // Use actual API later
-    if (!apiUrl) {
-        setError("API configuration error. Cannot save workout.");
-        setIsFinishing(false);
-        toast.error("API configuration error. Cannot save workout.");
-        return;
-    }
+    // if (!apiUrl) {
+    //     setError("API configuration error. Cannot save workout.");
+    //     setIsFinishing(false);
+    //     toast.error("API configuration error. Cannot save workout.");
+    //     return;
+    // }
 
     const cleanedLoggedData = activeWorkout.loggedData.map(ex => ({
         ...ex,
