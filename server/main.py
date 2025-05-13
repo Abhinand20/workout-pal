@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Union, TypeVar, Generic, Any
@@ -15,6 +15,11 @@ from models import (
     LogWorkoutRequest,
     LogWorkoutData
 )
+from data.database import init_db, get_db
+from data.schema import Exercise, Force, Category
+from data.queries import get_stretching_exercises, get_push_exercises, get_pull_exercises, get_abs_exercises, get_full_body_exercises
+from sqlalchemy.orm import Session
+from llm.service import create_llm_service
 
 app = FastAPI(title="Workout Pal API")
 
@@ -32,8 +37,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize the database
+init_db()
+# Initialize the LLM service
+
 @app.get("/api/workout/today", response_model=ApiResponse[FetchWorkoutData])
-async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None)):
+async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), db: Session = Depends(get_db)):
     """
     Fetches today's workout routine.
     Optionally allows filtering by workout split.
@@ -42,41 +51,45 @@ async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None)):
     user_prefs = await db.get_user_preferences(user_id)
     generated_workout = await llm_service.generate_workout(prompt=user_prefs.prompt, split=split)
     """
-    # TODO: Implement logic to generate or retrieve today's workout
-    # This might involve:
-    # 1. Checking if a workout for today already exists for the user.
-    # 2. If not, generating a new one based on user preferences, history, and the 'split' parameter.
-    # 3. Interacting with an LLM or a predefined workout generation logic.
-    # 4. Storing the generated workout (if applicable).
-    # 5. Formatting the workout into the WorkoutRoutine Pydantic model.
-
+    # 1. Query stretching exercises
+    # 2. Query exercises for the workout split
+    # 3. (to be implemented) Query user's workout history
+    # 4. (to be implemented) Query user's preferences
+    # 5. Prompt LLM to generate the workout
+    # 6. Return the workout
     try:
-        # Placeholder implementation:
-        if split == WorkoutSplit.FULL_BODY:
-            # Example: Create a sample full body workout
-            sample_exercises = [
-                Exercise(id="ex1", name="Squats", target_sets=3, target_reps="8-12", target_weight_kg=60),
-                Exercise(id="ex2", name="Bench Press", target_sets=3, target_reps="8-12", target_weight_kg=50),
-                Exercise(id="ex3", name="Rows", target_sets=3, target_reps="10-15", target_weight_kg=40),
-            ]
-            sample_workout_routine = WorkoutRoutine(
-                date="2024-07-30", # Should be dynamic (today's date)
-                ai_insight="A great full body workout to start your week!",
-                routine=sample_exercises
-            )
-            return ApiResponse[FetchWorkoutData](
-                success=True,
-                data=FetchWorkoutData(workout=sample_workout_routine)
-            )
+        stretching_exercises = get_stretching_exercises(db)
+        primary_exercises = []
+        if split == WorkoutSplit.PUSH:
+            primary_exercises = get_push_exercises(db)
+        elif split == WorkoutSplit.PULL:
+            primary_exercises = get_pull_exercises(db)
+        elif split == WorkoutSplit.ABS:
+            primary_exercises = get_abs_exercises(db)
+        elif split == WorkoutSplit.FULL_BODY:
+            primary_exercises = get_full_body_exercises(db)
         else:
-            # Example: Generic workout or error if split is required/unsupported
-            sample_exercises = [Exercise(id="ex_generic", name="General Exercise", target_sets=3, target_reps="10")]
-            sample_workout_routine = WorkoutRoutine(date="2024-07-30", routine=sample_exercises)
             return ApiResponse[FetchWorkoutData](
-                success=True,
-                data=FetchWorkoutData(workout=sample_workout_routine)
+                success=False,
+                error=ApiErrorDetail(message="Not implemented", code="NOT_IMPLEMENTED")
             )
-
+            
+        # (TODO) Query workout history for the user
+         # 3. Generate the workout using the LLM service
+        # For now, use a default prompt since user preferences aren't implemented yet
+        default_prompt = "Create a balanced workout that targets multiple muscle groups."
+        llm_service = create_llm_service()
+        generated_workout = await llm_service.generate_workout(
+            prompt=default_prompt, 
+            split=split,
+            stretching_exercises=stretching_exercises,
+            primary_exercises=primary_exercises
+        )
+        print(f"Generated workout: {generated_workout}")
+        return ApiResponse[FetchWorkoutData](
+            success=False,
+            error=ApiErrorDetail(message="Not implemented", code="NOT_IMPLEMENTED")
+        )
     except Exception as e:
         # In a real app, log the exception 'e'
         return ApiResponse[FetchWorkoutData](

@@ -5,8 +5,10 @@ from enum import Enum
 # --- Enums ---
 class WorkoutSplit(str, Enum):
     FULL_BODY = "FULL_BODY"
-    UPPER_LOWER = "UPPER_LOWER"
-    PUSH_PULL_LEGS = "PUSH_PULL_LEGS"
+    PUSH = "PUSH"
+    PULL = "PULL"
+    LEGS = "LEGS"
+    ABS = "ABS"
 
 class LogSetStatus(str, Enum):
     PENDING = "pending"

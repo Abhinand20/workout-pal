@@ -14,6 +14,7 @@
 - Add support for sequencing the exercises in the workout
 - Include warmup and stretching exercises?
 - Support for selecting the split of the workout
+- Support creating and storing user preferences (e.g. workout split, think about other preferences)
 
 
 ### [Backend] Basic functionality remaining work items ordered by priority
@@ -26,6 +27,9 @@
 - Create a vector database of set exercises (rich info such as images, instructions etc.) and set it as a tool for the LLM to use to generate the workout routine
 - Each exercise log will also be structured properly to see historical trends
 - Need to update the frontend to cleanly display exercise info
+- Energy/time-aware scaling: quick mode or low-energy day variant
+- Support multiple training phases (e.g. strength block vs cut)
+- Sync wearable data (like HR, steps, sleep)
 
 ### [Deployment]
 
