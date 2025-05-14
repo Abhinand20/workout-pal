@@ -8,7 +8,7 @@ class GeminiConfig(BaseModel):
     """Gemini configuration settings."""
     api_key: str = Field(..., description="Gemini API key")
     model: str = Field(default="gemini-2.5-flash-preview-04-17", description="Gemini model to use")
-    temperature: float = Field(default=0.0, description="Model temperature")
+    temperature: Optional[float] = Field(default=None, description="Model temperature")
     max_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate")
 
 class ServerConfig(BaseModel):
@@ -49,9 +49,9 @@ class ConfigManager:
 
         gemini_config = GeminiConfig(
             api_key=os.getenv("GEMINI_API_KEY", ""),
-            model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
-            temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.0")),
-            max_tokens=int(os.getenv("GEMINI_MAX_TOKENS", "0")) if os.getenv("GEMINI_MAX_TOKENS") else None
+            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-preview-04-17"),
+            temperature=os.getenv("GEMINI_TEMPERATURE", None),
+            max_tokens=os.getenv("GEMINI_MAX_TOKENS", None)
         )
 
         # Load server config
@@ -80,7 +80,7 @@ class ConfigManager:
         return self._config
 
     def get_gemini_config(self) -> GeminiConfig:
-        """Get OpenAI configuration."""
+        """Get Gemini configuration."""
         return self._config.gemini
 
     def get_server_config(self) -> ServerConfig:

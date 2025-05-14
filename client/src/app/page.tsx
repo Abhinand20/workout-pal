@@ -1,6 +1,7 @@
 "use client"; // Make the page a Client Component to use hooks
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { TodayWorkout } from '@/components/today-workout';
 import { WorkoutLogging } from '@/components/log-workout'; // Import the new component
 import { WorkoutRoutine, ActiveWorkoutState, LoggedExercise, LoggedSet } from '@/types';
@@ -12,14 +13,18 @@ import { ApiResponse, FetchWorkoutData, FetchWorkoutParams, WorkoutSplit } from 
 
 // Define keys for local storage
 const WORKOUT_STATE_KEY = 'activeWorkoutState';
-const INITIAL_WORKOUT_KEY = 'initialWorkoutData'; 
+const INITIAL_WORKOUT_KEY = 'initialWorkoutData';
+const INITIAL_WORKOUT_SPLIT_KEY = 'initialWorkoutSplit';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Fetch today's workout routine from the API.
 async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRoutine> {
-  // Make the API call and pass in the request params
+  if (!API_URL) {
+    console.error("API URL is not configured.");
+    throw new Error("API URL is not configured. Cannot fetch workout.");
+  }
   const url = new URL(`${API_URL}/api/workout/today`);
-  url.searchParams.set('split', params.split || '');
+  url.searchParams.set('split', params.split || WorkoutSplit.PUSH);
   const response = await fetch(url.toString(), {
     method: 'GET',
     headers: {
@@ -46,61 +51,129 @@ async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRo
 }
 
 export default function HomePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [initialWorkoutData, setInitialWorkoutData] = useState<WorkoutRoutine | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentSplit, setCurrentSplit] = useState<WorkoutSplit | null>(null);
 
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkoutState | null>(null);
   const [isFinishing, setIsFinishing] = useState(false); // Loading state for finish button
 
   // State to track the currently active set
   const [activeSetInfo, setActiveSetInfo] = useState<{ exerciseIndex: number; setIndex: number } | null>(null);
+  const [isInitialLoadEffectComplete, setIsInitialLoadEffectComplete] = useState(false);
 
+  // --- Data Fetching ---
+  const fetchWorkoutForSplit = useCallback(async (splitToFetch: WorkoutSplit) => {
+    // Simplified guard: if already loading this exact split, don't re-trigger from non-explicit actions
+    if (isLoading && currentSplit === splitToFetch) {
+      console.log(`Already fetching for split: ${splitToFetch}. Request ignored.`);
+      return;
+    }
+
+    setIsLoading(true);
+    //setError(null); // Clear error only if we are fetching a *new* split.
+                     // If it's a retry for the same split that failed, error might still be relevant.
+    if (currentSplit !== splitToFetch) {
+        setError(null); // Clear error if it's for a different split
+    }
+
+    console.log(`Attempting to fetch new workout data for split: ${splitToFetch}...`);
+
+    try {
+      const workout = await fetchTodaysWorkout({ split: splitToFetch });
+      setInitialWorkoutData(workout);
+      setCurrentSplit(splitToFetch); // Update currentSplit to the successfully fetched one
+      setError(null); // Clear error on successful fetch
+      console.log("Fetched workout data:", workout);
+
+      localStorage.setItem(INITIAL_WORKOUT_KEY, JSON.stringify(workout));
+      localStorage.setItem(INITIAL_WORKOUT_SPLIT_KEY, splitToFetch);
+      console.log(`Initial workout data and split (${splitToFetch}) cached.`);
+    } catch (err) {
+      console.error("Error fetching workout:", err);
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
+      setError(errorMessage); // Set error state
+      toast.error(errorMessage || `Failed to fetch workout plan for ${splitToFetch}.`);
+      // Do not change currentSplit or initialWorkoutData here if the fetch fails,
+      // so the UI can still show the last successfully loaded workout.
+      // If initialWorkoutData was for the 'splitToFetch' and it failed, it will be cleared by TodayWorkout's logic or remain null.
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading, currentSplit]); // Removed initialWorkoutData and error from deps to avoid loops
 
   // --- Local Storage Effect ---
   useEffect(() => {
     let loadedActive = false;
-    let loadedInitial = false;
 
     // 1. Try loading active workout state
     try {
-        const savedActiveState = localStorage.getItem(WORKOUT_STATE_KEY);
-        if (savedActiveState) {
-            const parsedState: ActiveWorkoutState = JSON.parse(savedActiveState);
-            setActiveWorkout(parsedState);
-            loadedActive = true;
-            console.log("Loaded active workout session from localStorage.");
-        }
+      const savedActiveState = localStorage.getItem(WORKOUT_STATE_KEY);
+      if (savedActiveState) {
+        const parsedState: ActiveWorkoutState = JSON.parse(savedActiveState);
+        setActiveWorkout(parsedState);
+        loadedActive = true;
+        setIsLoading(false);
+        console.log("Loaded active workout session from localStorage.");
+        setIsInitialLoadEffectComplete(true);
+        return; // Active workout found, main page logic takes over.
+      }
     } catch (e) {
-        console.error("Failed to load active workout state from localStorage:", e);
-        localStorage.removeItem(WORKOUT_STATE_KEY); // Clear potentially corrupted data
+      console.error("Failed to load active workout state from localStorage:", e);
+      localStorage.removeItem(WORKOUT_STATE_KEY);
     }
 
-    // 2. If no active workout, try loading cached initial workout data
-    if (!loadedActive) {
+    // 2. No active workout, check query params and cache for initial workout
+    const querySplit = searchParams.get('split') as WorkoutSplit | null;
+    const cachedDataJSON = localStorage.getItem(INITIAL_WORKOUT_KEY);
+    const cachedSplitString = localStorage.getItem(INITIAL_WORKOUT_SPLIT_KEY);
+    const cachedSplit = cachedSplitString ? cachedSplitString as WorkoutSplit : null;
+
+    if (querySplit) {
+      console.log(`Query split detected: ${querySplit}`);
+      if (cachedDataJSON && cachedSplit === querySplit) {
+        console.log("Query split matches cached data. Using cache.");
         try {
-            const savedInitialData = localStorage.getItem(INITIAL_WORKOUT_KEY);
-            if (savedInitialData) {
-                const parsedData: WorkoutRoutine = JSON.parse(savedInitialData);
-                setInitialWorkoutData(parsedData);
-                loadedInitial = true;
-                console.log("Loaded initial workout data from localStorage cache.");
-            }
+          setInitialWorkoutData(JSON.parse(cachedDataJSON));
+          setCurrentSplit(cachedSplit);
+          setIsLoading(false);
         } catch (e) {
-            console.error("Failed to load initial workout data from localStorage:", e);
-            localStorage.removeItem(INITIAL_WORKOUT_KEY); 
+          console.error("Failed to parse cached initial workout data (with query split):", e);
+          localStorage.removeItem(INITIAL_WORKOUT_KEY);
+          localStorage.removeItem(INITIAL_WORKOUT_SPLIT_KEY);
+          fetchWorkoutForSplit(querySplit);
         }
+      } else {
+        console.log("Query split present, but differs from cache or cache empty. Fetching new data.");
+        fetchWorkoutForSplit(querySplit);
+      }
+    } else { // No query split
+      console.log("No query split in URL.");
+      if (cachedDataJSON && cachedSplit) {
+        console.log("No query split, but cached data found. Using cache for display, but should go via landing if user needs to pick.");
+         try {
+           setInitialWorkoutData(JSON.parse(cachedDataJSON));
+           setCurrentSplit(cachedSplit);
+           setIsLoading(false);
+         } catch (e) {
+           console.error("Failed to parse cached initial workout data (no query split):", e);
+           localStorage.removeItem(INITIAL_WORKOUT_KEY);
+           localStorage.removeItem(INITIAL_WORKOUT_SPLIT_KEY);
+           router.replace('/landing');
+         }
+        // If the intent is *always* to go via landing if no query param, then:
+        // router.replace('/landing');
+      } else {
+        console.log("No active session, no query split, no cached data. Redirecting to landing page.");
+        router.replace('/landing');
+      }
     }
-
-    // 3. If neither active nor initial data was loaded from storage, fetch fresh data
-    if (!loadedActive && !loadedInitial) {
-        console.log("No active session or cached initial data found. Fetching new workout...");
-        fetchInitialWorkout();
-    } else {
-        setIsLoading(false); // Data loaded from storage, no initial fetch needed now
-    }
-
-  }, []); // Empty dependency array ensures this runs only once on mount
+    setIsInitialLoadEffectComplete(true);
+  }, [searchParams, router, fetchWorkoutForSplit]);
 
   useEffect(() => {
     // Save active workout state to localStorage whenever it changes
@@ -120,61 +193,15 @@ export default function HomePage() {
   // Define the cancel handler
   const handleCancelWorkout = () => {
       console.log("Cancel workout requested.");
-      setActiveWorkout(null); // This clears the active session from localStorage via useEffect
-
-      // Explicitly reload the initial data from cache into state
-      try {
-          const savedInitialData = localStorage.getItem(INITIAL_WORKOUT_KEY);
-          if (savedInitialData) {
-              const parsedData: WorkoutRoutine = JSON.parse(savedInitialData);
-              setInitialWorkoutData(parsedData); // Restore the view to the cached initial plan
-              console.log("Restored initial workout data from cache after cancel.");
-          } else {
-              // If cache was somehow cleared, set initial data to null
-              setInitialWorkoutData(null);
-               console.log("No cached initial data found after cancel.");
-               // Optionally trigger a refetch if desired
-               // fetchInitialWorkout();
-          }
-      } catch (e) {
-          console.error("Failed to load initial workout data from localStorage during cancel:", e);
-          setInitialWorkoutData(null); // Clear on error
-          localStorage.removeItem(INITIAL_WORKOUT_KEY);
-      }
-      setError(null); // Clear any potential errors from the logging phase
-      setIsFinishing(false); // Ensure finishing state is reset
+      setActiveWorkout(null);
+      localStorage.removeItem(INITIAL_WORKOUT_KEY); // Clear cached plan as we are navigating away
+      localStorage.removeItem(INITIAL_WORKOUT_SPLIT_KEY);
+      setError(null);
+      setIsFinishing(false);
+      router.push('/landing'); // Go back to landing page
+      console.log("Workout cancelled, redirected to landing.");
   };
 
-  // --- Data Fetching ---
-  const fetchInitialWorkout = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    setInitialWorkoutData(null); 
-    localStorage.removeItem(INITIAL_WORKOUT_KEY);
-    console.log("Attempting to fetch new workout data...");
-
-    try {
-      // TODO(abhi): Support selecting the workout split (e.g., full body, upper-lower, push-pull-legs)
-      const workout = await fetchTodaysWorkout({split: WorkoutSplit.FULL_BODY});
-      setInitialWorkoutData(workout);
-      console.log("Fetched workout data:", workout);
-
-      // Cache the newly fetched data in localStorage
-      try {
-          localStorage.setItem(INITIAL_WORKOUT_KEY, JSON.stringify(workout));
-          console.log("Initial workout data cached in localStorage.");
-      } catch (e) {
-          console.error("Failed to cache initial workout data:", e);
-      }
-
-    } catch (err) {
-      console.error("Error fetching workout:", err);
-      setError(err instanceof Error ? err.message : "An unknown error occurred.");
-       toast.error("Failed to fetch workout plan.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []); // No dependencies
 
   // --- Workout Control Handlers ---
   const handleStartWorkout = (routineToStart: WorkoutRoutine) => {
@@ -346,21 +373,24 @@ export default function HomePage() {
     });
   }, [activeSetInfo]);
 
-  // TODO(abhi): Correctly update/clean the duration of each set/exercise/workout.
-   const handleFinishWorkout = useCallback(async () => {
+  // --- Regenerate Workout Handler ---
+  const handleRegenerateWorkout = useCallback((splitToRegenerate: WorkoutSplit) => {
+    console.log(`Regenerate workout requested for split: ${splitToRegenerate}`);
+    // Set initialWorkoutData to null if regenerating for a *different* split
+    // to ensure the loading spinner for TodayWorkout shows correctly.
+    if (currentSplit !== splitToRegenerate) {
+        setInitialWorkoutData(null);
+    }
+    fetchWorkoutForSplit(splitToRegenerate);
+  }, [fetchWorkoutForSplit, currentSplit]); // Added currentSplit as dependency
+
+  // --- Finish Workout ---
+  const handleFinishWorkout = useCallback(async () => {
     if (!activeWorkout) return;
 
     setIsFinishing(true);
     setError(null);
     console.log("Attempting to finish and save workout...");
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL; // Use actual API later
-    // if (!apiUrl) {
-    //     setError("API configuration error. Cannot save workout.");
-    //     setIsFinishing(false);
-    //     toast.error("API configuration error. Cannot save workout.");
-    //     return;
-    // }
 
     const cleanedLoggedData = activeWorkout.loggedData.map(ex => ({
         ...ex,
@@ -372,7 +402,6 @@ export default function HomePage() {
         })).filter(set => set.weight_kg !== null || set.reps !== null)
     }));
 
-
     const payload = {
       started_at: new Date(activeWorkout.startTime).toISOString(),
       finished_at: new Date().toISOString(),
@@ -380,31 +409,27 @@ export default function HomePage() {
       logged_exercises: cleanedLoggedData,
     };
 
-    // Mocking success for now
     try {
-        console.log("Simulating successful API call to save workout:", payload);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+      console.log("Simulating successful API call to save workout:", payload);
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // SUCCESS
-        toast.success("Workout saved successfully.");
-        setActiveWorkout(null); // Clear active state (this also clears active state localStorage)
-        // Also clear the cached initial workout data, as it's now completed
-        localStorage.removeItem(INITIAL_WORKOUT_KEY);
-        console.log("Cleared cached initial workout data after successful finish.");
+      toast.success("Workout saved successfully.");
+      setActiveWorkout(null);
+      localStorage.removeItem(INITIAL_WORKOUT_KEY);
+      localStorage.removeItem(INITIAL_WORKOUT_SPLIT_KEY);
+      console.log("Cleared cached initial workout data and split after successful finish.");
 
-        // Re-fetch initial data for the *next* workout automatically
-        fetchInitialWorkout();
+      router.push('/landing');
 
-    } catch (err) { // Keep the original error handling structure for real API calls
-        console.error("Error finishing workout:", err);
-        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred while saving.";
-        setError(errorMessage);
-        toast.error(errorMessage);
+    } catch (err) {
+      console.error("Error finishing workout:", err);
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred while saving.";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsFinishing(false);
     }
-  }, [activeWorkout, fetchInitialWorkout]);
-
+  }, [activeWorkout, router]);
 
   // --- Render Logic ---
   const renderContent = () => {
@@ -422,49 +447,47 @@ export default function HomePage() {
           activeSetInfo={activeSetInfo}
         />
       );
-    } else if (isLoading) {
-      // Render loading state for initial fetch
-      return (
-          <div className="flex items-center justify-center h-40">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2">Loading workout...</span>
-          </div>
+    }
+
+    // More robust loading check for the very initial load
+    if (isLoading && !isInitialLoadEffectComplete && !initialWorkoutData) {
+        return (
+            <div className="flex items-center justify-center h-40">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Loading workout data...</span>
+            </div>
         );
-    } else if (error && !initialWorkoutData) {
-       // Render error state if loading failed AND we have no cached/stale data
-      return (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>
-              {error || "Could not fetch workout."}
-              <Button variant="outline" size="sm" onClick={fetchInitialWorkout} className="ml-4">Retry</Button>
-            </AlertDescription>
-          </Alert>
-        );
-    } else if (initialWorkoutData) {
-      // Render the initial workout display (either fresh or from cache)
+    }
+    
+    // If initial load is complete OR we have some data (even if also loading new data)
+    // and we have a currentSplit (meaning a workout was attempted or loaded)
+    // OR if there's an error that needs to be shown with the TodayWorkout context
+    if (isInitialLoadEffectComplete && (currentSplit || initialWorkoutData || error)) {
       return (
         <TodayWorkout
           workoutData={initialWorkoutData}
-          isLoading={false}
-          error={error} // Show non-fatal error if fetch failed but we have data
-          onStartWorkout={() => handleStartWorkout(initialWorkoutData)}
-          onRegenerateWorkout={fetchInitialWorkout}
+          isLoading={isLoading}
+          error={error}
+          onStartWorkout={() => initialWorkoutData && handleStartWorkout(initialWorkoutData)}
+          onRegenerateWorkout={handleRegenerateWorkout} // Passed as is
+          currentSplit={currentSplit}
+          // onCurrentSplitChange is no longer needed/passed
         />
       );
-    } else {
-        // Fallback if not loading, no error, but no data (e.g., API returned empty)
-         return (
-             <Alert>
-                 <AlertTitle>No Workout Data</AlertTitle>
-                 <AlertDescription>
-                 No workout plan available for today. Try fetching again later.
-                 <Button variant="outline" size="sm" onClick={fetchInitialWorkout} className="ml-4">Fetch Now</Button>
-                 </AlertDescription>
-             </Alert>
-         );
     }
+    
+    // Fallback if still loading or redirecting (e.g. to /landing)
+    // This handles the case where initial load is done, but no split/data/error yet,
+    // implying a redirect to /landing might be in progress or just occurred.
+    if (!activeWorkout) { // Ensure we are not in an active workout state
+        return (
+            <div className="flex items-center justify-center h-40">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Loading page...</span>
+            </div>
+        );
+    }
+    return null; // Should be covered by redirects or other states
   };
 
 

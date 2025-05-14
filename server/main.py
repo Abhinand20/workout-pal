@@ -19,7 +19,7 @@ from data.database import init_db, get_db
 from data.schema import Exercise, Force, Category
 from data.queries import get_stretching_exercises, get_push_exercises, get_pull_exercises, get_abs_exercises, get_full_body_exercises
 from sqlalchemy.orm import Session
-from llm.service import create_llm_service
+from llm.service import LLMService
 
 app = FastAPI(title="Workout Pal API")
 
@@ -60,7 +60,7 @@ async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), db: S
     try:
         stretching_exercises = get_stretching_exercises(db)
         primary_exercises = []
-        if split == WorkoutSplit.PUSH:
+        if split == WorkoutSplit.PUSH or (split is None):
             primary_exercises = get_push_exercises(db)
         elif split == WorkoutSplit.PULL:
             primary_exercises = get_pull_exercises(db)
@@ -75,20 +75,20 @@ async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), db: S
             )
             
         # (TODO) Query workout history for the user
-         # 3. Generate the workout using the LLM service
+            # 3. Generate the workout using the LLM service
         # For now, use a default prompt since user preferences aren't implemented yet
-        default_prompt = "Create a balanced workout that targets multiple muscle groups."
-        llm_service = create_llm_service()
+        curr_split = split.value if split else "PUSH"
+        default_prompt = f"Create a workout routine for the {curr_split} split for a 26 year old male who is 180 lbs and 5'10 looking to gain muscle mass and strength."
+        llm_service = LLMService()
         generated_workout = await llm_service.generate_workout(
             prompt=default_prompt, 
             split=split,
             stretching_exercises=stretching_exercises,
             primary_exercises=primary_exercises
         )
-        print(f"Generated workout: {generated_workout}")
         return ApiResponse[FetchWorkoutData](
-            success=False,
-            error=ApiErrorDetail(message="Not implemented", code="NOT_IMPLEMENTED")
+            success=True,
+            data=FetchWorkoutData(workout=generated_workout)
         )
     except Exception as e:
         # In a real app, log the exception 'e'

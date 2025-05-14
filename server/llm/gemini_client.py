@@ -12,7 +12,6 @@ class GeminiClient(LLMClient):
         """Initialize the Gemini client with configuration."""
         config_manager = ConfigManager()
         self.gemini_config = config_manager.get_gemini_config()
-        
         self.client = genai.Client(api_key=self.gemini_config.api_key)
         
     async def generate_content(self, prompt: str, system_prompt: str = None, **kwargs) -> str:
@@ -38,7 +37,7 @@ class GeminiClient(LLMClient):
         )
         return response.text
     
-    async def generate_structured_content(self, prompt: str, system_prompt: str = None, **kwargs) -> Any:
+    async def generate_structured_content(self, prompt: str, system_prompt: str = None, **kwargs) -> types.GenerateContentResponse:
         """
         Generate structured (json) content using Gemini model.
 
@@ -65,7 +64,7 @@ class GeminiClient(LLMClient):
                 response_schema=response_schema,
             )
         )
-        return response.parsed
+        return response
 
     def get_config(self) -> Dict[str, Any]:
         """Get the configuration for this client."""

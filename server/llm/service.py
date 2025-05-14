@@ -48,6 +48,3 @@ class LLMService:
         workout_agent = self.agents["workout_generator"]
         return await workout_agent.execute(prompt=prompt, split=split, **kwargs)
 
-def create_llm_service() -> LLMService:
-    """Create a singleton instance of the LLM service."""
-    return LLMService()

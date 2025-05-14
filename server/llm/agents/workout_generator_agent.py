@@ -6,6 +6,7 @@ from datetime import datetime
 from models import Exercise, WorkoutRoutine, WorkoutSplit
 from llm.base import LLMClient
 from llm.agents.base_agent import BaseAgent
+from llm.gemini_client import GeminiClient
 
 class WorkoutGeneratorAgent(BaseAgent):
     """Agent for generating workout routines."""
@@ -41,7 +42,7 @@ class WorkoutGeneratorAgent(BaseAgent):
         response_text = await self.llm_client.generate_structured_content(context, response_schema=WorkoutRoutine)
         
         # Parse the response into a WorkoutRoutine
-        return self._parse_workout_response(response_text, split)
+        return self._parse_workout_response(response_text)
     
     def _build_context(self, 
                      prompt: str, 
@@ -57,6 +58,7 @@ class WorkoutGeneratorAgent(BaseAgent):
             "level": ex.level,
             "equipment": ex.equipment,
             "primary_muscles": ex.primary_muscles,
+            "instructions": ex.instructions
         } for ex in (stretching_exercises or [])])
         
         primary_json = json.dumps([{
@@ -66,9 +68,11 @@ class WorkoutGeneratorAgent(BaseAgent):
             "level": ex.level,
             "equipment": ex.equipment,
             "primary_muscles": ex.primary_muscles,
+            "instructions": ex.instructions
         } for ex in (primary_exercises or [])])
         
         # Build the model prompt
+        # We already specify the response schema for Gemini
         context = f"""
         You are a professional fitness coach creating a personalized workout routine.
         
@@ -93,31 +97,16 @@ class WorkoutGeneratorAgent(BaseAgent):
         - Number of sets (typically 3-5)
         - Rep range (e.g., "8-10" or "12")
         - Rest period in seconds (typically 30-120)
-        - Target weight in kg (optional, can be null)
-        
-        Format your response as a valid JSON object with the following structure:
-        {
-            "ai_insight": "string",
-            "routine": [
-                {
-                    "id": "string",
-                    "name": "string",
-                    "target_sets": number,
-                    "target_reps": "string",
-                    "rest_period_seconds": number,
-                    "target_weight_kg": number | null
-                },
-                ...
-            ]
-        }
-        
-        Only return the JSON object, nothing else.
+        - Target weight in lbs (optional, can be null) 
+        - Tip (short and concise tip for the exercise to help the user perform the exercise better)
         """
         
         return context
     
-    def _parse_workout_response(self, response_text: str, split: Optional[WorkoutSplit]) -> WorkoutRoutine:
+    def _parse_workout_response(self, response_text) -> WorkoutRoutine:
         """Parse the LLM response into a WorkoutRoutine object."""
+        if isinstance(self.llm_client, GeminiClient):
+            return response_text.parsed
         try:
             # Extract the JSON portion of the response
             json_str = response_text.strip()

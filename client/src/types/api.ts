@@ -12,8 +12,10 @@ export interface ApiResponse<T> {
 
 export enum WorkoutSplit {
   FULL_BODY = 'FULL_BODY',
-  UPPER_LOWER = 'UPPER_LOWER',
-  PUSH_PULL_LEGS = 'PUSH_PULL_LEGS',
+  PUSH = 'PUSH',
+  PULL = 'PULL',
+  ABS = 'ABS',
+  LEGS = 'LEGS'
   // Add other splits as needed
 }
 

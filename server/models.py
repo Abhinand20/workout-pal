@@ -30,6 +30,7 @@ class Exercise(BaseModel):
     target_reps: str  # e.g., "8-10" or "15"
     target_weight_kg: Optional[float] = None
     rest_period_seconds: Optional[int] = None
+    tip: Optional[str] = None
     # Add other relevant fields from your TS Exercise if they are sent/received
     # For example, if your TS Exercise has description, tips, imageUrl, add them here.
 
