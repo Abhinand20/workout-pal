@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -20,6 +21,7 @@ from data.schema import Exercise, Force, Category
 from data.queries import get_stretching_exercises, get_push_exercises, get_pull_exercises, get_abs_exercises, get_full_body_exercises
 from sqlalchemy.orm import Session
 from llm.service import LLMService
+from data.queries import create_workout_log
 
 app = FastAPI(title="Workout Pal API")
 
@@ -86,9 +88,11 @@ async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), db: S
             stretching_exercises=stretching_exercises,
             primary_exercises=primary_exercises
         )
+        response_data = FetchWorkoutData(workout=generated_workout)
+        response_data.workout.id = str(split) + "_" + str(datetime.now().strftime("%Y%m%d%H%M%S"))
         return ApiResponse[FetchWorkoutData](
             success=True,
-            data=FetchWorkoutData(workout=generated_workout)
+            data=response_data
         )
     except Exception as e:
         # In a real app, log the exception 'e'
@@ -132,25 +136,27 @@ async def edit_specific_exercise(request: EditExerciseRequest):
 
 
 @app.post("/api/workout/log", response_model=ApiResponse[LogWorkoutData])
-async def log_workout_data(request: LogWorkoutRequest):
+async def log_workout_data(request: LogWorkoutRequest, db: Session = Depends(get_db)):
     """
     Receives logged workout data from the client and persists it.
     """
-
     try:
-        # Placeholder implementation:
-        print(f"Received workout log for routine: {request.workoutRoutineId}")
-        print(f"Number of exercises logged: {len(request.loggedExercises)}")
-        if request.loggedExercises:
-            print(f"First logged exercise: {request.loggedExercises[0].name}, Sets: {len(request.loggedExercises[0].sets)}")
-        
-        # Simulate saving to DB and getting an ID
-        persisted_log_id = f"log_{request.workoutRoutineId}_{request.startTime or 'manual'}"
+        # For now, use a hardcoded user_id.
+        # In a real application, this would come from an authentication system.
+        user_id = "default_user"
+        print(f"Received request to log workout: {request}")
+        persisted_log = create_workout_log(db, user_id, request)
+
+        if not persisted_log:
+            return ApiResponse[LogWorkoutData](
+                success=False,
+                error=ApiErrorDetail(message="Failed to save workout log to database.", code="DB_SAVE_ERROR")
+            )
 
         return ApiResponse[LogWorkoutData](
             success=True,
             data=LogWorkoutData(
-                loggedWorkoutId=persisted_log_id,
+                loggedWorkoutId=persisted_log.id,
                 message="Workout logged successfully."
             )
         )

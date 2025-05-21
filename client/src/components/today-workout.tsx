@@ -150,11 +150,23 @@ export function TodayWorkout({ workoutData, isLoading, error, onStartWorkout, on
               </CardHeader>
               <CardContent>
                 Sets: {exercise.target_sets} x Reps: {exercise.target_reps}
-                {exercise.target_weight_kg && ` @ ~${exercise.target_weight_kg} kg`}
+                {exercise.target_weight_lbs && ` @ ~${exercise.target_weight_lbs} lbs`}
                 {exercise.rest_period_seconds && (
                       <p className="text-sm text-muted-foreground">
                           Rest: {exercise.rest_period_seconds} seconds
                       </p>
+                )}
+                {exercise.focus_groups && exercise.focus_groups.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {exercise.focus_groups.map((group: string) => (
+                      <span
+                        key={group}
+                        className="mt-2 px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                      >
+                        {group}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>

@@ -52,6 +52,7 @@ class GeminiClient(LLMClient):
         """
         if kwargs.get("response_schema") is None:
             raise ValueError("response_schema is required")
+        print(f"Generating content with Gemini model: {self.gemini_config.model}")
         response_schema = kwargs.get("response_schema")
         response = await self.client.aio.models.generate_content(
             model=self.gemini_config.model,
@@ -64,6 +65,7 @@ class GeminiClient(LLMClient):
                 response_schema=response_schema,
             )
         )
+        print(f"Generated content: {response.text}")
         return response
 
     def get_config(self) -> Dict[str, Any]:

@@ -5,13 +5,15 @@ export interface Exercise {
     name: string;
     target_sets: number;
     target_reps: string; // Can be a range like "8-10" or specific number
-    target_weight_kg?: number | null; // Optional target weight
+    target_weight_lbs?: number | null; // Optional target weight
     rest_period_seconds?: number | null; // Optional rest time
     tip?: string | null; // Optional tip for the exercise
     // Add other relevant fields if your API provides them
+    focus_groups?: string[] | null; // Optional focus groups for the exercise
   }
   
 export interface WorkoutRoutine {
+  id: string; // Unique identifier for the workout routine
   date: string; // Or a more specific identifier
   ai_insight?: string; // Optional insight from the LLM
   routine: Exercise[];
@@ -29,7 +31,7 @@ export interface TodayWorkoutProps {
 
 export interface LoggedSet {
   set_number: number; // e.g., 1, 2, 3... corresponding to target_sets
-  weight_kg: number | string; // Use string to allow empty input initially
+  weight_lbs: number | string; // Use string to allow empty input initially
   reps: number | string;      // Use string to allow empty input initially
   rpe?: number | string;     // Rating of Perceived Exertion (optional)
   // Add notes field if desired later
@@ -52,6 +54,7 @@ export interface LoggedExercise {
 }
 
 export interface ActiveWorkoutState {
+  workout_id: string; // ID of the workout being performed
   startTime: number; // Timestamp (Date.now()) when workout started (absolute start)
   currentSessionStartTime?: number; // Timestamp of when current active period started (for workout pause/resume)
   totalActiveDuration_ms: number; // Accumulated active time for the entire workout

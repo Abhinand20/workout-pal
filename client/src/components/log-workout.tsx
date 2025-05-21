@@ -95,7 +95,7 @@ export function WorkoutLogging({
           <CardTitle>{currentExercise.name}</CardTitle>
           <CardDescription>
             Target: {currentExercise.target_sets} sets x {currentExercise.target_reps}
-            {currentExercise.target_weight_kg && ` @ ~${currentExercise.target_weight_kg} kg`}
+            {currentExercise.target_weight_lbs && ` @ ~${currentExercise.target_weight_lbs} lbs`}
             {currentExercise.rest_period_seconds && ` | Rest: ${currentExercise.rest_period_seconds}s`}
           </CardDescription>
         </CardHeader>
@@ -117,9 +117,9 @@ export function WorkoutLogging({
                     <Input
                       id={`weight-${setIndex}`}
                       type="number"
-                      placeholder={currentExercise.target_weight_kg?.toString() ?? "N/A"}
-                      value={set.weight_kg}
-                      onChange={(e) => handleInputChange(setIndex, 'weight_kg', e.target.value)}
+                      placeholder={currentExercise.target_weight_lbs?.toString() ?? "N/A"}
+                      value={set.weight_lbs}
+                      onChange={(e) => handleInputChange(setIndex, 'weight_lbs', e.target.value)}
                       className="mt-1"
                       min="0"
                       step="0.5"

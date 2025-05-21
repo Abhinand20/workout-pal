@@ -68,4 +68,35 @@ class Exercise(Base):
         return f"{self.name} {self.primary_muscles} {self.secondary_muscles} {self.equipment} {self.force} {self.mechanic} {self.level} {self.category}"
     
 
-# TODO: Define schema for the workout log
+# --- Workout Log Schema ---
+class WorkoutLog(Base):
+    __tablename__ = "workout_logs"
+
+    id = Column(String, primary_key=True) # e.g., log_WORKOUT_ROUTINE_ID_TIMESTAMP
+    workout_routine_id = Column(String) # Reference to the original WorkoutRoutine.id if applicable
+    user_id = Column(String, index=True) # To associate logs with a user
+    start_time = Column(Integer) # Unix timestamp (milliseconds)
+    end_time = Column(Integer, nullable=True) # Unix timestamp (milliseconds)
+    total_duration_seconds = Column(Integer, nullable=True)
+    notes = Column(Text, nullable=True)
+    # Could add more fields like workout_name, workout_focus, etc.
+
+class LoggedExercise(Base):
+    __tablename__ = "logged_exercises"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    workout_log_id = Column(String, index=True) # Foreign key to WorkoutLog.id
+    exercise_id = Column(String) # Reference to the original Exercise.id from 'exercises' table
+    name = Column(String) # Name of the exercise at the time of logging
+    # Actual performance data
+    sets = Column(JSON) # Store the list of LoggedSet Pydantic models as JSON
+    # Example structure for 'sets' column (JSON):
+    # [
+    #   {"set_number": 1, "weight_kg": 50, "reps": 10, "rpe": 8, "elapsedTime_ms": 30000, "status": "completed"},
+    #   {"set_number": 2, "weight_kg": 50, "reps": 9, "rpe": 8.5, "elapsedTime_ms": 28000, "status": "completed"}
+    # ]
+    start_time = Column(Integer, nullable=True) # Unix timestamp for this specific exercise
+    elapsed_time_ms = Column(Integer)
+    status = Column(String) # e.g., 'completed', 'skipped'
+    active_work_time_ms = Column(Integer, nullable=True)
+

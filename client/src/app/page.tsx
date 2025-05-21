@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from '@/components/ui/button';
-import { ApiResponse, FetchWorkoutData, FetchWorkoutParams, WorkoutSplit } from '@/types/api';
+import { ApiResponse, FetchWorkoutData, FetchWorkoutParams, LogWorkoutData, LogWorkoutRequest, WorkoutSplit } from '@/types/api';
 
 // Define keys for local storage
 const WORKOUT_STATE_KEY = 'activeWorkoutState';
@@ -210,7 +210,7 @@ export default function HomePage() {
       name: exercise.name,
       sets: Array.from({ length: exercise.target_sets }, (_, i) => ({
         set_number: i + 1,
-        weight_kg: '',
+        weight_lbs: '',
         reps: '',
         rpe: '',
         startTime: undefined,
@@ -223,6 +223,7 @@ export default function HomePage() {
     }));
 
     setActiveWorkout({
+      workout_id: routineToStart.id,
       startTime: Date.now(),
       currentSessionStartTime: Date.now(),
       routine: routineToStart,
@@ -396,29 +397,50 @@ export default function HomePage() {
         ...ex,
         sets: ex.sets.map(set => ({
             set_number: set.set_number,
-            weight_kg: (typeof set.weight_kg === 'string' && set.weight_kg.trim() !== '') ? parseFloat(set.weight_kg) || null : typeof set.weight_kg === 'number' ? set.weight_kg : null,
+            weight_lbs: (typeof set.weight_lbs === 'string' && set.weight_lbs.trim() !== '') ? parseFloat(set.weight_lbs) || null : typeof set.weight_lbs === 'number' ? set.weight_lbs : null,
             reps: (typeof set.reps === 'string' && set.reps.trim() !== '') ? parseInt(set.reps, 10) || null : typeof set.reps === 'number' ? set.reps : null,
             rpe: (typeof set.rpe === 'string' && set.rpe.trim() !== '') ? parseFloat(set.rpe) || null : typeof set.rpe === 'number' ? set.rpe : null,
-        })).filter(set => set.weight_kg !== null || set.reps !== null)
+        })).filter(set => set.weight_lbs !== null || set.reps !== null)
     }));
 
-    const payload = {
-      started_at: new Date(activeWorkout.startTime).toISOString(),
-      finished_at: new Date().toISOString(),
-      original_routine: activeWorkout.routine,
-      logged_exercises: cleanedLoggedData,
+    const payload: LogWorkoutRequest = {
+      workoutRoutineId: activeWorkout.routine.id,
+      loggedExercises: activeWorkout.loggedData,
+      startTime: activeWorkout.startTime,
+      endTime: Date.now(),
+      totalDurationSeconds: (Date.now() - activeWorkout.startTime) / 1000,
+      notes: '',
     };
-
     try {
-      console.log("Simulating successful API call to save workout:", payload);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the real API endpoint
+      console.log("Sending workout log to server:", JSON.stringify(payload));
+      const response = await fetch(`${API_URL}/api/workout/log`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
-      toast.success("Workout saved successfully.");
-      setActiveWorkout(null);
-      localStorage.removeItem(INITIAL_WORKOUT_KEY);
-      localStorage.removeItem(INITIAL_WORKOUT_SPLIT_KEY);
-      console.log("Cleared cached initial workout data and split after successful finish.");
-
+      if (!response.ok) {
+        const errorData: ApiResponse<LogWorkoutData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+      }
+      const result: ApiResponse<LogWorkoutData> = await response.json();
+      if (result.success && result.data) {
+        toast.success("Workout saved successfully.");
+        setActiveWorkout(null);
+        localStorage.removeItem(INITIAL_WORKOUT_KEY);
+        localStorage.removeItem(INITIAL_WORKOUT_SPLIT_KEY);
+        console.log("Cleared cached initial workout data and split after successful finish.");
+      } else if (result.error) {
+        console.error('API returned an error:', result.error.message);
+        throw new Error(result.error.message);
+      } else {
+        console.error('Unexpected API response structure:', result);
+        throw new Error('Unexpected API response structure.');
+      }
       router.push('/landing');
 
     } catch (err) {

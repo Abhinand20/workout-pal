@@ -28,20 +28,22 @@ class Exercise(BaseModel):
     name: str
     target_sets: int
     target_reps: str  # e.g., "8-10" or "15"
-    target_weight_kg: Optional[float] = None
+    target_weight_lbs: Optional[float] = None
     rest_period_seconds: Optional[int] = None
     tip: Optional[str] = None
+    focus_groups: Optional[List[str]] = None
     # Add other relevant fields from your TS Exercise if they are sent/received
     # For example, if your TS Exercise has description, tips, imageUrl, add them here.
 
 class WorkoutRoutine(BaseModel):
+    id: str
     date: str  # e.g., "YYYY-MM-DD"
     ai_insight: Optional[str] = None
     routine: List[Exercise]
 
 class LoggedSet(BaseModel):
     set_number: int
-    weight_kg: Union[float, str] # Allow string for inputs like "bodyweight" or empty
+    weight_lbs: Union[float, str] # Allow string for inputs like "bodyweight" or empty
     reps: Union[int, str]        # Allow string for inputs like "failure" or empty
     rpe: Optional[Union[int, str]] = None
     startTime: Optional[int] = None # JS timestamp (milliseconds)
@@ -94,7 +96,7 @@ class LogWorkoutRequest(BaseModel):
     loggedExercises: List[LoggedExercise]
     startTime: Optional[int] = None
     endTime: Optional[int] = None
-    totalDurationSeconds: Optional[int] = None
+    totalDurationSeconds: Optional[float] = None
     notes: Optional[str] = None
 
 class LogWorkoutData(BaseModel):

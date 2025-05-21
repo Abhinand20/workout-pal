@@ -7,6 +7,7 @@ from models import Exercise, WorkoutRoutine, WorkoutSplit
 from llm.base import LLMClient
 from llm.agents.base_agent import BaseAgent
 from llm.gemini_client import GeminiClient
+from config.prompts import WORKOUT_AGENT_SYSTEM_PROMPT
 
 class WorkoutGeneratorAgent(BaseAgent):
     """Agent for generating workout routines."""
@@ -25,7 +26,7 @@ class WorkoutGeneratorAgent(BaseAgent):
         Returns:
             Generated WorkoutRoutine
         """
-        prompt = kwargs.get('prompt', '')
+        prompt = kwargs.get('prompt', 'Goal: Gain muscle mass and strength and lose fat')
         split = kwargs.get('split')
         stretching_exercises = kwargs.get('stretching_exercises', [])
         primary_exercises = kwargs.get('primary_exercises', [])
@@ -39,7 +40,8 @@ class WorkoutGeneratorAgent(BaseAgent):
         )
         
         # Get the response from the LLM
-        response_text = await self.llm_client.generate_structured_content(context, response_schema=WorkoutRoutine)
+        print(f"Context: {context}")
+        response_text = await self.llm_client.generate_structured_content(context, response_schema=WorkoutRoutine, system_prompt=WORKOUT_AGENT_SYSTEM_PROMPT)
         
         # Parse the response into a WorkoutRoutine
         return self._parse_workout_response(response_text)
@@ -58,7 +60,6 @@ class WorkoutGeneratorAgent(BaseAgent):
             "level": ex.level,
             "equipment": ex.equipment,
             "primary_muscles": ex.primary_muscles,
-            "instructions": ex.instructions
         } for ex in (stretching_exercises or [])])
         
         primary_json = json.dumps([{
@@ -68,16 +69,21 @@ class WorkoutGeneratorAgent(BaseAgent):
             "level": ex.level,
             "equipment": ex.equipment,
             "primary_muscles": ex.primary_muscles,
-            "instructions": ex.instructions
         } for ex in (primary_exercises or [])])
         
         # Build the model prompt
         # We already specify the response schema for Gemini
+        focus_groups = []
+        if split and split.value == WorkoutSplit.PUSH:
+            focus_groups = ["Chest", "Shoulders", "Triceps"]
+        elif split and split.value == WorkoutSplit.PULL:
+            focus_groups = ["Back", "Biceps", "Forearms"]
         context = f"""
-        You are a professional fitness coach creating a personalized workout routine.
+        Create a workout routine for the user based on the following information:
         
         Today's date: {datetime.now().strftime('%Y-%m-%d')}
         Workout split: {split.value if split else 'Not specified'}
+        Workout focus groups: {", ".join(focus_groups) if focus_groups else 'Not specified'}
         User preferences: {prompt}
         
         Available stretching exercises:
@@ -87,18 +93,19 @@ class WorkoutGeneratorAgent(BaseAgent):
         {primary_json}
         
         Create a workout routine with the following format:
-        1. A brief insight about the workout (1-2 sentences)
+        1. A brief insight about the workout (1-2 sentences) providing an overview of the workout
         2. A list of 2-3 stretching exercises from the available options
-        3. A list of 4-6 primary exercises from the available options
+        3. A list of 5 primary exercises from the available options
         
         For each exercise, specify:
         - Exercise ID (must match one from the available exercises)
         - Exercise name
         - Number of sets (typically 3-5)
         - Rep range (e.g., "8-10" or "12")
+        - Target weight in lbs (a single number, can be null for stretching exercises)
         - Rest period in seconds (typically 30-120)
-        - Target weight in lbs (optional, can be null) 
-        - Tip (short and concise tip for the exercise to help the user perform the exercise better)
+        - Tip (short and concise tip for the exercise that a personal trainer would give to help the user perform the exercise better)
+        - Focus groups (optional, can be null)
         """
         
         return context
