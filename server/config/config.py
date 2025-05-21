@@ -49,7 +49,7 @@ class ConfigManager:
 
         gemini_config = GeminiConfig(
             api_key=os.getenv("GEMINI_API_KEY", ""),
-            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-preview-05-20"),
+            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-preview-04-17"),
             temperature=os.getenv("GEMINI_TEMPERATURE", None),
             max_tokens=os.getenv("GEMINI_MAX_TOKENS", None)
         )

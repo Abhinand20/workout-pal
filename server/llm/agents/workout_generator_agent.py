@@ -86,6 +86,7 @@ class WorkoutGeneratorAgent(BaseAgent):
         Workout focus groups: {", ".join(focus_groups) if focus_groups else 'Not specified'}
         User preferences: {prompt}
         
+        The data below is the relevant exercises from the exercises.json file. ONLY SELECT EXERCISES FROM THIS LIST AND USE THE EXERCISE IDS PROVIDED.
         Available stretching exercises:
         {stretching_json}
         

@@ -2,6 +2,7 @@ from enum import Enum
 from sqlalchemy import Column, String, Integer, Text, JSON, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.schema import ForeignKey
 
 Base = declarative_base()
 
@@ -72,6 +73,7 @@ class Exercise(Base):
 class WorkoutLog(Base):
     __tablename__ = "workout_logs"
 
+    # TODO: Add way to associate workout with the split it belongs to
     id = Column(String, primary_key=True) # e.g., log_WORKOUT_ROUTINE_ID_TIMESTAMP
     workout_routine_id = Column(String) # Reference to the original WorkoutRoutine.id if applicable
     user_id = Column(String, index=True) # To associate logs with a user
@@ -79,14 +81,13 @@ class WorkoutLog(Base):
     end_time = Column(Integer, nullable=True) # Unix timestamp (milliseconds)
     total_duration_seconds = Column(Integer, nullable=True)
     notes = Column(Text, nullable=True)
-    # Could add more fields like workout_name, workout_focus, etc.
 
 class LoggedExercise(Base):
     __tablename__ = "logged_exercises"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    workout_log_id = Column(String, index=True) # Foreign key to WorkoutLog.id
-    exercise_id = Column(String) # Reference to the original Exercise.id from 'exercises' table
+    workout_log_id = Column(String, ForeignKey("workout_logs.id")) # Foreign key to WorkoutLog.id
+    exercise_id = Column(String, ForeignKey("exercises.id")) # Reference to the original Exercise.id from 'exercises' table
     name = Column(String) # Name of the exercise at the time of logging
     # Actual performance data
     sets = Column(JSON) # Store the list of LoggedSet Pydantic models as JSON

@@ -441,7 +441,10 @@ export default function HomePage() {
         console.error('Unexpected API response structure:', result);
         throw new Error('Unexpected API response structure.');
       }
-      router.push('/landing');
+      // Add a delay before pushing to landing
+      setTimeout(() => {
+        router.push('/landing');
+      }, 2000);
 
     } catch (err) {
       console.error("Error finishing workout:", err);
