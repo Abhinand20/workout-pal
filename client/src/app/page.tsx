@@ -388,31 +388,28 @@ export default function HomePage() {
   // --- Finish Workout ---
   const handleFinishWorkout = useCallback(async () => {
     if (!activeWorkout) return;
-
+    
     setIsFinishing(true);
     setError(null);
     console.log("Attempting to finish and save workout...");
-
-    const cleanedLoggedData = activeWorkout.loggedData.map(ex => ({
+    const cleanedLoggedData: LoggedExercise[] = activeWorkout.loggedData
+    .filter(ex => ex.status !== 'pending')
+    .map(ex => ({
         ...ex,
-        sets: ex.sets.map(set => ({
-            set_number: set.set_number,
-            weight_lbs: (typeof set.weight_lbs === 'string' && set.weight_lbs.trim() !== '') ? parseFloat(set.weight_lbs) || null : typeof set.weight_lbs === 'number' ? set.weight_lbs : null,
-            reps: (typeof set.reps === 'string' && set.reps.trim() !== '') ? parseInt(set.reps, 10) || null : typeof set.reps === 'number' ? set.reps : null,
-            rpe: (typeof set.rpe === 'string' && set.rpe.trim() !== '') ? parseFloat(set.rpe) || null : typeof set.rpe === 'number' ? set.rpe : null,
-        })).filter(set => set.weight_lbs !== null || set.reps !== null)
+        sets: ex.sets.filter(set => set.status !== 'pending')
     }));
+
+    console.log("Cleaned logged data:", cleanedLoggedData);
 
     const payload: LogWorkoutRequest = {
       workoutRoutineId: activeWorkout.routine.id,
-      loggedExercises: activeWorkout.loggedData,
+      loggedExercises: cleanedLoggedData,
       startTime: activeWorkout.startTime,
       endTime: Date.now(),
       totalDurationSeconds: (Date.now() - activeWorkout.startTime) / 1000,
       notes: '',
     };
     try {
-      // Call the real API endpoint
       console.log("Sending workout log to server:", JSON.stringify(payload));
       const response = await fetch(`${API_URL}/api/workout/log`, {
         method: 'POST',

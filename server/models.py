@@ -28,7 +28,7 @@ class Exercise(BaseModel):
     name: str
     target_sets: int
     target_reps: str  # e.g., "8-10" or "15"
-    target_weight_lbs: Optional[float] = None
+    target_weight_lbs: int
     rest_period_seconds: Optional[int] = None
     tip: Optional[str] = None
     focus_groups: Optional[List[str]] = None

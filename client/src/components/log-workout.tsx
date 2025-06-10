@@ -45,8 +45,15 @@ export function WorkoutLogging({
     field: keyof LoggedSet,
     value: string
   ) => {
-    // Basic validation/parsing can happen here or in the parent handler
-    onUpdateLog(currentExerciseIndex, setIndex, field, value);
+    // Basic validation/parsing
+    let storedValue: number | string = value;
+    if (field === 'weight_lbs' || field === 'reps') {
+      if (value === '') {
+        value = '0';
+      }
+      storedValue = parseFloat(value);
+    }
+    onUpdateLog(currentExerciseIndex, setIndex, field, storedValue);
   };
 
   // Timer display and update logic
@@ -113,7 +120,7 @@ export function WorkoutLogging({
                 <Label className="col-span-3 text-md font-medium">Set {set.set_number}</Label>
                 <div className="grid grid-cols-3 gap-3 items-end">
                   <div>
-                    <Label htmlFor={`weight-${setIndex}`} className="text-xs text-muted-foreground">Weight (kg)</Label>
+                    <Label htmlFor={`weight-${setIndex}`} className="text-xs text-muted-foreground">Weight (lbs)</Label>
                     <Input
                       id={`weight-${setIndex}`}
                       type="number"
@@ -123,7 +130,7 @@ export function WorkoutLogging({
                       className="mt-1"
                       min="0"
                       step="0.5"
-                      disabled={set.status === 'active' || set.status === 'completed' || isAnotherSetGloballyActive}
+                      disabled={set.status === 'completed' || isAnotherSetGloballyActive}
                     />
                   </div>
                   <div>
@@ -137,7 +144,7 @@ export function WorkoutLogging({
                       className="mt-1"
                       min="0"
                       step="1"
-                      disabled={set.status === 'active' || set.status === 'completed' || isAnotherSetGloballyActive}
+                      disabled={set.status === 'completed' || isAnotherSetGloballyActive}
                     />
                   </div>
                   <div>
@@ -152,7 +159,7 @@ export function WorkoutLogging({
                       min="1"
                       max="10"
                       step="0.5"
-                      disabled={set.status === 'active' || set.status === 'completed' || isAnotherSetGloballyActive}
+                      disabled={set.status === 'completed' || isAnotherSetGloballyActive}
                     />
                   </div>
                 </div>

@@ -41,7 +41,7 @@
 
 ### TODOs:
 
-- Fix inconsistencies in the BE/FE data model (lbs vs kg)
-- Cleanup data before storing it in the database (eg. skip PENDING sets)
+- (DONE) Fix inconsistencies in the BE/FE data model (lbs vs kg)
+- (DONE) Cleanup data before storing it in the database (eg. skip PENDING sets)
 - Pre-fill the set metadata for the user
 - Update backend logic to query historical workouts data.

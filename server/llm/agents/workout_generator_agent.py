@@ -87,23 +87,20 @@ class WorkoutGeneratorAgent(BaseAgent):
         User preferences: {prompt}
         
         The data below is the relevant exercises from the exercises.json file. ONLY SELECT EXERCISES FROM THIS LIST AND USE THE EXERCISE IDS PROVIDED.
-        Available stretching exercises:
-        {stretching_json}
-        
+
         Available primary exercises for this split:
         {primary_json}
         
-        Create a workout routine with the following format:
+        Create a workout routine which can be finished in under 45 minutes with the following format:
         1. A brief insight about the workout (1-2 sentences) providing an overview of the workout
-        2. A list of 2-3 stretching exercises from the available options
-        3. A list of 5 primary exercises from the available options
+        3. A list of 4-5 primary exercises from the available options
         
         For each exercise, specify:
         - Exercise ID (must match one from the available exercises)
         - Exercise name
         - Number of sets (typically 3-5)
         - Rep range (e.g., "8-10" or "12")
-        - Target weight in lbs (a single number, can be null for stretching exercises)
+        - Target weight in lbs (a single positive integer)
         - Rest period in seconds (typically 30-120)
         - Tip (short and concise tip for the exercise that a personal trainer would give to help the user perform the exercise better)
         - Focus groups (optional, can be null)
