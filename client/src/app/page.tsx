@@ -57,7 +57,7 @@ export default function HomePage() {
   const [initialWorkoutData, setInitialWorkoutData] = useState<WorkoutRoutine | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentSplit, setCurrentSplit] = useState<WorkoutSplit | null>(null);
+  const [currentSplit, setCurrentSplit] = useState<WorkoutSplit>(WorkoutSplit.PUSH);
 
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkoutState | null>(null);
   const [isFinishing, setIsFinishing] = useState(false); // Loading state for finish button
@@ -396,8 +396,10 @@ export default function HomePage() {
     .filter(ex => ex.status !== 'pending')
     .map(ex => ({
         ...ex,
-        sets: ex.sets.filter(set => set.status !== 'pending')
-    }));
+        sets: ex.sets.filter(set => set.status !== 'pending'),
+        status: 'completed',
+    }))
+
 
     console.log("Cleaned logged data:", cleanedLoggedData);
 
@@ -408,6 +410,7 @@ export default function HomePage() {
       endTime: Date.now(),
       totalDurationSeconds: (Date.now() - activeWorkout.startTime) / 1000,
       notes: '',
+      split: currentSplit,
     };
     try {
       console.log("Sending workout log to server:", JSON.stringify(payload));

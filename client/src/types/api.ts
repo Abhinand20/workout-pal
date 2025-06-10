@@ -56,6 +56,7 @@ export interface LogWorkoutRequest {
   endTime?: number; // Timestamp (Date.now()) when workout was completed
   totalDurationSeconds?: number; // Total time spent on the workout in seconds
   notes?: string; // Overall notes for the logged workout session
+  split: WorkoutSplit; // The split of the workout
 }
 
 export interface LogWorkoutData {

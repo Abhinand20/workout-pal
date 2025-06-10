@@ -1,7 +1,6 @@
 from enum import Enum
 from sqlalchemy import Column, String, Integer, Text, JSON, create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.schema import ForeignKey
 
 Base = declarative_base()
@@ -73,10 +72,10 @@ class Exercise(Base):
 class WorkoutLog(Base):
     __tablename__ = "workout_logs"
 
-    # TODO: Add way to associate workout with the split it belongs to
     id = Column(String, primary_key=True) # e.g., log_WORKOUT_ROUTINE_ID_TIMESTAMP
     workout_routine_id = Column(String) # Reference to the original WorkoutRoutine.id if applicable
     user_id = Column(String, index=True) # To associate logs with a user
+    split = Column(String) # The split of the workout
     start_time = Column(Integer) # Unix timestamp (milliseconds)
     end_time = Column(Integer, nullable=True) # Unix timestamp (milliseconds)
     total_duration_seconds = Column(Integer, nullable=True)

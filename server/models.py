@@ -98,6 +98,7 @@ class LogWorkoutRequest(BaseModel):
     endTime: Optional[int] = None
     totalDurationSeconds: Optional[float] = None
     notes: Optional[str] = None
+    split: WorkoutSplit
 
 class LogWorkoutData(BaseModel):
     loggedWorkoutId: str

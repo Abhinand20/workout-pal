@@ -76,6 +76,7 @@ def create_workout_log(db: Session, user_id: str, log_data: LogWorkoutRequest) -
             start_time=log_data.startTime,
             end_time=log_data.endTime,
             total_duration_seconds=log_data.totalDurationSeconds,
+            split=log_data.split,
             notes=log_data.notes
         )
         db.add(db_workout_log)
