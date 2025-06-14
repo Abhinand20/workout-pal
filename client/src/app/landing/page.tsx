@@ -54,7 +54,7 @@ export default function LandingPage() {
 
   const handleGenerateWorkout = () => {
     if (selectedSplit) {
-      router.push(`/?split=${selectedSplit}`);
+      router.push(`/workout?split=${selectedSplit}`);
     }
   };
 
