@@ -62,6 +62,7 @@ export interface ActiveWorkoutState {
   routine: WorkoutRoutine; // The original routine being performed
   currentExerciseIndex: number;
   loggedData: LoggedExercise[]; // The data being logged by the user
+  split: WorkoutSplit; // The split of the workout
 }
 
 export interface WorkoutLoggingProps {

@@ -1,13 +1,19 @@
 ### [Frontend] Basic functionality remaining work items ordered by priority
 
+- (IN PROGRESS) Strict Auth to restrict access before deploying to production
 - Display total workout time at the end of the workout - create a new component which displays the total workout time and informs the user that the workout is finished
 - Implement updating the exercises in the set by adding modals for prompts to LLM
-- Strict Auth to restrict access before deploying to production
-- Allow modifying set metadata while timer is running/after timer is finished
 
 - (DONE) Implement the "Finish Workout" button to save the workout and end the session
 - (DONE) Calculate and store total workout time in the workout state
 - (DONE) Concretely define the APIs for the back end retrieve and store the workout data
+- (DONE) Allow modifying set metadata while timer is running/after timer is finished
+
+### Refactoring to enable multiple users and move towards MVP production app
+
+- Move from a SPA to page-based routing 
+- Add a landing page to prompt users to sign up/login
+- Move away from local storage to storing user data in the backend database (implement APIs, update fetching logic etc.)
 
 ### Nice to have features
 
