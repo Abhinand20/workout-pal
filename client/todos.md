@@ -1,6 +1,7 @@
 ### [Frontend] Basic functionality remaining work items ordered by priority
 
 - (IN PROGRESS) Strict Auth to restrict access before deploying to production
+- (FIXME) Multiple API calls are made to the backend for the same split. Is it because of dev runs? Fix this later.
 - Display total workout time at the end of the workout - create a new component which displays the total workout time and informs the user that the workout is finished
 - Implement updating the exercises in the set by adding modals for prompts to LLM
 

@@ -32,7 +32,8 @@ async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRo
   const response = await fetch(url.toString(), {
     method: 'GET',
     headers: {
-      'Content-Type': 'application/json',
+      // 'Content-Type': 'application/json',
+      'Accept': 'application/json',
     },
   });
 
@@ -68,14 +69,12 @@ export default function HomePage() {
   // --- Data Fetching ---
   const fetchWorkoutForSplit = useCallback(async (splitToFetch: WorkoutSplit) => {
     // Simplified guard: if already loading this exact split, don't re-trigger from non-explicit actions
-    if (isLoading && currentSplit === splitToFetch) {
-      console.log(`Already fetching for split: ${splitToFetch}. Request ignored.`);
-      return;
-    }
+    // if (isLoading && currentSplit === splitToFetch) {
+    //   console.log(`Already fetching for split: ${splitToFetch}. Request ignored.`);
+    //   return;
+    // }
 
     setIsLoading(true);
-    //setError(null); // Clear error only if we are fetching a *new* split.
-                     // If it's a retry for the same split that failed, error might still be relevant.
     if (currentSplit !== splitToFetch) {
         setError(null); // Clear error if it's for a different split
     }
