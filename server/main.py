@@ -1,3 +1,9 @@
+"""
+TODOs: 
+1. Add authentication to the APIs. 
+2. The FE should pass in the auth token in the request headers. APIs should validate the auth token and extract the user_id from the token.
+"""
+
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,11 +20,27 @@ from models import (
     EditExerciseRequest,
     EditExerciseData,
     LogWorkoutRequest,
-    LogWorkoutData
+    LogWorkoutData,
+    GetActiveWorkoutSessionRequest,
+    GetActiveWorkoutSessionData,
+    UpdateActiveWorkoutSessionRequest,
+    UpdateActiveWorkoutSessionData,
+    DeleteActiveWorkoutSessionRequest,
 )
 from data.database import init_db, get_db
 from data.schema import Exercise, Force, Category
-from data.queries import get_stretching_exercises, get_push_exercises, get_pull_exercises, get_abs_exercises, get_full_body_exercises
+from data.queries import (
+    get_stretching_exercises, 
+    get_push_exercises, 
+    get_pull_exercises, 
+    get_abs_exercises, 
+    get_full_body_exercises,
+    fetch_active_workout_session,
+    insert_or_update_active_workout_session,
+    remove_active_workout_session,
+    save_user_workout_routine,
+    get_cached_user_workout_routine
+)
 from sqlalchemy.orm import Session
 from llm.service import LLMService
 from data.queries import create_workout_log
@@ -43,6 +65,74 @@ app.add_middleware(
 init_db()
 # Initialize the LLM service
 
+
+@app.get("/api/workout/active", response_model=ApiResponse[GetActiveWorkoutSessionData])
+async def get_active_workout_session(request: GetActiveWorkoutSessionRequest, db: Session = Depends(get_db)):
+    """
+    Gets the active workout session for a user.
+    """
+    try:
+        print(f"Fetching active workout session: {request.active_workout_session_id}")
+        active_workout_session = fetch_active_workout_session(db, request.active_workout_session_id)
+
+        if not active_workout_session:
+            return ApiResponse[GetActiveWorkoutSessionData](
+                success=False,
+                error=ApiErrorDetail(message="No active workout session found.", code="NO_ACTIVE_WORKOUT_SESSION")
+            )
+
+        return ApiResponse[GetActiveWorkoutSessionData](
+            success=True,
+            data=GetActiveWorkoutSessionData(activeWorkoutSession=active_workout_session)
+        )
+    except Exception as e:
+        return ApiResponse[GetActiveWorkoutSessionData](
+            success=False,  
+            error=ApiErrorDetail(message=f"Failed to get active workout session: {str(e)}", code="GET_ACTIVE_WORKOUT_SESSION_ERROR")
+        )
+
+@app.post("/api/workout/active", response_model=ApiResponse[UpdateActiveWorkoutSessionData])
+async def update_active_workout_session(request: UpdateActiveWorkoutSessionRequest, db: Session = Depends(get_db)):
+    """
+    Updates the workout session for a user. If the user is not currently in a workout session, this will create a new one.
+    """
+    try:
+        print(f"Updating active workout session for user: {request.user_id}")
+        active_workout_session_id = insert_or_update_active_workout_session(db, request.user_id, request.activeWorkoutSession)
+        if not active_workout_session_id:
+            return ApiResponse[UpdateActiveWorkoutSessionData](
+                success=False,
+                error=ApiErrorDetail(message="Failed to update active workout session.", code="DB_SAVE_ERROR")
+            )
+        
+        return ApiResponse[UpdateActiveWorkoutSessionData](
+            success=True,
+            data=UpdateActiveWorkoutSessionData(activeWorkoutSessionId=active_workout_session_id)
+        )
+    except Exception as e:
+        return ApiResponse[UpdateActiveWorkoutSessionData](
+            success=False,
+            error=ApiErrorDetail(message=f"Failed to update active workout session: {str(e)}", code="UPDATE_ACTIVE_WORKOUT_SESSION_ERROR")
+        )
+
+@app.delete("/api/workout/active", response_model=ApiResponse[None])
+async def delete_active_workout_session(request: DeleteActiveWorkoutSessionRequest, db: Session = Depends(get_db)):
+    """
+    Deletes the active workout session for a user.
+    """
+    try:
+        remove_active_workout_session(db, request.activeWorkoutSessionId, request.user_id)
+        return ApiResponse[None](
+            success=True,
+            data=None
+        )
+    except Exception as e:
+        return ApiResponse[None](
+            success=False,
+            error=ApiErrorDetail(message=f"Failed to delete active workout session: {str(e)}", code="DELETE_ACTIVE_WORKOUT_SESSION_ERROR")
+        )
+
+# TODO: Extend this to enable re-generation based on request params or add re-generation endpoint.
 @app.get("/api/workout/today", response_model=ApiResponse[FetchWorkoutData])
 async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), db: Session = Depends(get_db)):
     """
@@ -60,6 +150,14 @@ async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), db: S
     # 5. Prompt LLM to generate the workout
     # 6. Return the workout
     try:
+        user_id = "test_user" # TODO: Get user_id from the request or JWT token
+        cached_workout_routine = get_cached_user_workout_routine(db, user_id, split)
+        if cached_workout_routine:
+            print(f"Found cached workout routine for split: {split}, returning it.")
+            return ApiResponse[FetchWorkoutData](
+                success=True,
+                data=FetchWorkoutData(workout=cached_workout_routine)
+            )
         stretching_exercises = get_stretching_exercises(db)
         primary_exercises = []
         if split == WorkoutSplit.PUSH or (split is None):
@@ -90,6 +188,9 @@ async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), db: S
         )
         response_data = FetchWorkoutData(workout=generated_workout)
         response_data.workout.id = str(split) + "_" + str(datetime.now().strftime("%Y%m%d%H%M%S"))
+        # Store the workout routine in the database
+        print(f"Saving workout routine to database for user: {user_id}, split: {split}") 
+        save_user_workout_routine(db, user_id, split, response_data.workout)
         return ApiResponse[FetchWorkoutData](
             success=True,
             data=response_data

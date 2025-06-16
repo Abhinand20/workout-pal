@@ -41,6 +41,17 @@ class WorkoutRoutine(BaseModel):
     ai_insight: Optional[str] = None
     routine: List[Exercise]
 
+class ActiveWorkoutSession(BaseModel):
+    workout_id: str
+    start_time: int
+    current_exercise_index: int
+    logged_data: List[Exercise]
+    routine: WorkoutRoutine
+    is_paused: bool
+    current_session_start_time: int
+    total_active_duration_ms: int
+    split: WorkoutSplit
+
 class LoggedSet(BaseModel):
     set_number: int
     weight_lbs: Union[float, str] # Allow string for inputs like "bodyweight" or empty
@@ -103,3 +114,23 @@ class LogWorkoutRequest(BaseModel):
 class LogWorkoutData(BaseModel):
     loggedWorkoutId: str
     message: str
+
+# 4. Get Active Workout Session for a user
+class GetActiveWorkoutSessionRequest(BaseModel):
+    active_workout_session_id: str
+    user_id: Optional[str] = None
+
+class GetActiveWorkoutSessionData(BaseModel):
+    activeWorkoutSession: ActiveWorkoutSession
+
+# 5. Update Active Workout Session
+class UpdateActiveWorkoutSessionRequest(BaseModel):
+    activeWorkoutSession: ActiveWorkoutSession
+    user_id: str
+
+class UpdateActiveWorkoutSessionData(BaseModel):
+    activeWorkoutSessionId: str
+    
+class DeleteActiveWorkoutSessionRequest(BaseModel):
+    activeWorkoutSessionId: str
+    user_id: str

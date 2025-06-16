@@ -1,6 +1,3 @@
-"use client";
-
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,8 +10,6 @@ import SignIn from "@/components/sign-in";
 import SignUp from "@/components/sign-up";
 
 export default function MarketingLanding() {
-  const router = useRouter();
-
   return (
     <main
       className="container mx-auto flex flex-col md:flex-row items-center justify-center min-h-screen p-6 text-center md:text-left space-y-8 md:space-y-0 md:space-x-16"

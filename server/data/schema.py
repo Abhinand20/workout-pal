@@ -1,5 +1,6 @@
 from enum import Enum
-from sqlalchemy import Column, String, Integer, Text, JSON, create_engine
+import uuid
+from sqlalchemy import Column, String, Integer, Text, JSON, create_engine, Date, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.schema import ForeignKey
 
@@ -49,6 +50,31 @@ class PrimaryMuscle(Enum):
     NECK = "neck"
     ABDUCTORS = "abductors"
     
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(String, primary_key=True)
+    name = Column(String)
+
+class UserWorkoutRoutine(Base):
+    __tablename__ = "user_workout_routines"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4())) 
+    user_id = Column(String, index=True,) 
+    split = Column(String) 
+    generated_date = Column(Date) 
+    routine_json = Column(JSON) 
+
+# For each user, we store the active workout session
+# which will be updated by the client as the workout progresses
+class ActiveWorkoutSessions(Base):
+    __tablename__ = "active_workout_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, index=True, unique=True)
+    active_workout_session_json = Column(JSON)
+
+
 class Exercise(Base):
     __tablename__ = "exercises"
 
