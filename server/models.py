@@ -115,6 +115,14 @@ class LogWorkoutData(BaseModel):
     loggedWorkoutId: str
     message: str
 
+# CRUD operations for ActiveWorkoutSession
+class CreateActiveWorkoutSessionRequest(BaseModel):
+    user_id: str
+    activeWorkoutSession: ActiveWorkoutSession
+
+class CreateActiveWorkoutSessionData(BaseModel):
+    active_workout_session_id: str
+
 # 4. Get Active Workout Session for a user
 class GetActiveWorkoutSessionRequest(BaseModel):
     active_workout_session_id: str
@@ -125,12 +133,13 @@ class GetActiveWorkoutSessionData(BaseModel):
 
 # 5. Update Active Workout Session
 class UpdateActiveWorkoutSessionRequest(BaseModel):
+    active_workout_session_id: str
     activeWorkoutSession: ActiveWorkoutSession
-    user_id: str
+    user_id: Optional[str] = None
 
 class UpdateActiveWorkoutSessionData(BaseModel):
-    activeWorkoutSessionId: str
-    
+    active_workout_session_id: str
+
 class DeleteActiveWorkoutSessionRequest(BaseModel):
-    activeWorkoutSessionId: str
-    user_id: str
+    active_workout_session_id: str
+    user_id: Optional[str] = None

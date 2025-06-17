@@ -21,6 +21,8 @@ from models import (
     EditExerciseData,
     LogWorkoutRequest,
     LogWorkoutData,
+    CreateActiveWorkoutSessionRequest,
+    CreateActiveWorkoutSessionData,
     GetActiveWorkoutSessionRequest,
     GetActiveWorkoutSessionData,
     UpdateActiveWorkoutSessionRequest,
@@ -36,10 +38,11 @@ from data.queries import (
     get_abs_exercises, 
     get_full_body_exercises,
     fetch_active_workout_session,
-    insert_or_update_active_workout_session,
+    modify_active_workout_session,
     remove_active_workout_session,
     save_user_workout_routine,
-    get_cached_user_workout_routine
+    get_cached_user_workout_routine,
+    add_active_workout_session,
 )
 from sqlalchemy.orm import Session
 from llm.service import LLMService
@@ -91,14 +94,36 @@ async def get_active_workout_session(request: GetActiveWorkoutSessionRequest, db
             error=ApiErrorDetail(message=f"Failed to get active workout session: {str(e)}", code="GET_ACTIVE_WORKOUT_SESSION_ERROR")
         )
 
-@app.post("/api/workout/active", response_model=ApiResponse[UpdateActiveWorkoutSessionData])
+@app.post("/api/workout/active", response_model=ApiResponse[CreateActiveWorkoutSessionData])
+async def create_active_workout_session(request: CreateActiveWorkoutSessionRequest, db: Session = Depends(get_db)):
+    """
+    Creates a new active workout session for a user and returns the session id.
+    """
+    try:
+        active_workout_session_id = add_active_workout_session(db, request.user_id, request.activeWorkoutSession)
+        if not active_workout_session_id:
+            return ApiResponse[CreateActiveWorkoutSessionData](
+                success=False,
+                error=ApiErrorDetail(message="Failed to create active workout session.", code="DB_SAVE_ERROR")
+            )
+        return ApiResponse[CreateActiveWorkoutSessionData](
+            success=True,
+            data=CreateActiveWorkoutSessionData(active_workout_session_id=active_workout_session_id)
+        )
+    except Exception as e:
+        return ApiResponse[CreateActiveWorkoutSessionData](
+            success=False,
+            error=ApiErrorDetail(message=f"Failed to create active workout session: {str(e)}", code="CREATE_ACTIVE_WORKOUT_SESSION_ERROR")
+        )
+
+@app.put("/api/workout/active", response_model=ApiResponse[UpdateActiveWorkoutSessionData])
 async def update_active_workout_session(request: UpdateActiveWorkoutSessionRequest, db: Session = Depends(get_db)):
     """
     Updates the workout session for a user. If the user is not currently in a workout session, this will create a new one.
     """
     try:
         print(f"Updating active workout session for user: {request.user_id}")
-        active_workout_session_id = insert_or_update_active_workout_session(db, request.user_id, request.activeWorkoutSession)
+        active_workout_session_id = modify_active_workout_session(db, request.active_workout_session_id, request.activeWorkoutSession)
         if not active_workout_session_id:
             return ApiResponse[UpdateActiveWorkoutSessionData](
                 success=False,
@@ -107,7 +132,7 @@ async def update_active_workout_session(request: UpdateActiveWorkoutSessionReque
         
         return ApiResponse[UpdateActiveWorkoutSessionData](
             success=True,
-            data=UpdateActiveWorkoutSessionData(activeWorkoutSessionId=active_workout_session_id)
+            data=UpdateActiveWorkoutSessionData(active_workout_session_id=active_workout_session_id)
         )
     except Exception as e:
         return ApiResponse[UpdateActiveWorkoutSessionData](
@@ -121,7 +146,7 @@ async def delete_active_workout_session(request: DeleteActiveWorkoutSessionReque
     Deletes the active workout session for a user.
     """
     try:
-        remove_active_workout_session(db, request.activeWorkoutSessionId, request.user_id)
+        remove_active_workout_session(db, request.active_workout_session_id, request.user_id)
         return ApiResponse[None](
             success=True,
             data=None

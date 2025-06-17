@@ -1,4 +1,4 @@
-import { WorkoutRoutine, Exercise, LoggedExercise } from './index';
+import { WorkoutRoutine, Exercise, LoggedExercise, ActiveWorkoutState } from './index';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -65,3 +65,22 @@ export interface LogWorkoutData {
   // Potentially return some summary or achievements if applicable
 }
 // The full API response will be: ApiResponse<LogWorkoutData>
+
+export interface GetActiveWorkoutSessionRequest {
+  activeWorkoutSessionId: string;
+  userId: string | null;
+}
+
+export interface GetActiveWorkoutSessionData {
+  activeWorkoutSession: ActiveWorkoutState;
+}
+
+export interface UpdateActiveWorkoutSessionRequest {
+  activeWorkoutSessionId: string;
+  activeWorkoutState: ActiveWorkoutState;
+  userId: string | null;
+}
+
+export interface UpdateActiveWorkoutSessionData {
+  activeWorkoutSessionId: string;
+}

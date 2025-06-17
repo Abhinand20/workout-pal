@@ -13,7 +13,7 @@ import { WorkoutRoutine, ActiveWorkoutState, LoggedExercise } from '@/types';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
-import { ApiResponse, FetchWorkoutData, FetchWorkoutParams, LogWorkoutData, LogWorkoutRequest, WorkoutSplit } from '@/types/api';
+import { ApiResponse, FetchWorkoutData, FetchWorkoutParams, GetActiveWorkoutSessionData, LogWorkoutData, LogWorkoutRequest, WorkoutSplit } from '@/types/api';
 
 // Define keys for local storage
 const WORKOUT_STATE_KEY = 'activeWorkoutState';
@@ -22,6 +22,7 @@ const INITIAL_WORKOUT_SPLIT_KEY = 'initialWorkoutSplit';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Fetch today's workout routine from the API.
+// TODO: Add user JWT token to the request.
 async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRoutine> {
   if (!API_URL) {
     console.error("API URL is not configured.");
@@ -36,7 +37,7 @@ async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRo
       'Accept': 'application/json',
     },
   });
-
+  
   if (!response.ok) {
     // If the server responded with an error status (4xx or 5xx)
     const errorData: ApiResponse<FetchWorkoutData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
@@ -55,6 +56,44 @@ async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRo
   }
 }
 
+// TODO: Pass in user JWT token to the request so
+// that the backend can fetch the active workout session for the user.
+async function tryFetchActiveWorkoutState(activeWorkoutSessionId: string): Promise<ActiveWorkoutState | null> {
+  const response = await fetch(`${API_URL}/api/workout/active`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({ activeWorkoutSessionId: activeWorkoutSessionId, userId: null }),
+  });
+  if (!response.ok) {
+    // If the server responded with an error status (4xx or 5xx)
+    const errorData: ApiResponse<GetActiveWorkoutSessionData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+    console.error('API Error:', errorData);
+    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+  }
+  const result: ApiResponse<GetActiveWorkoutSessionData> = await response.json();
+  if (result.success && result.data) {
+    return result.data.activeWorkoutSession; // Return the actual workout state
+  } else if (result.error) {
+    console.error('API returned an error:', result.error.message);
+    return null;
+  } 
+  return null;
+}
+
+async function updateActiveWorkoutState(
+  activeWorkoutSessionId: string,
+  state: ActiveWorkoutState,
+): Promise<void> {
+  if (!API_URL) throw new Error("API url missing");
+  await fetch(`${API_URL}/api/workout/active`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ activeWorkoutSessionId: activeWorkoutSessionId, activeWorkoutState: state }),
+  });
+}
+
 export default function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -68,37 +107,19 @@ export default function HomePage() {
 
   // --- Data Fetching ---
   const fetchWorkoutForSplit = useCallback(async (splitToFetch: WorkoutSplit) => {
-    // Simplified guard: if already loading this exact split, don't re-trigger from non-explicit actions
-    // if (isLoading && currentSplit === splitToFetch) {
-    //   console.log(`Already fetching for split: ${splitToFetch}. Request ignored.`);
-    //   return;
-    // }
-
     setIsLoading(true);
-    if (currentSplit !== splitToFetch) {
-        setError(null); // Clear error if it's for a different split
-    }
-
     console.log(`Attempting to fetch new workout data for split: ${splitToFetch}...`);
-
     try {
       const workout = await fetchTodaysWorkout({ split: splitToFetch });
       setInitialWorkoutData(workout);
-      setCurrentSplit(splitToFetch); // Update currentSplit to the successfully fetched one
-      setError(null); // Clear error on successful fetch
+      setCurrentSplit(splitToFetch); 
+      setError(null); 
       console.log("Fetched workout data:", workout);
-
-      localStorage.setItem(INITIAL_WORKOUT_KEY, JSON.stringify(workout));
-      localStorage.setItem(INITIAL_WORKOUT_SPLIT_KEY, splitToFetch);
-      console.log(`Initial workout data and split (${splitToFetch}) cached.`);
     } catch (err) {
       console.error("Error fetching workout:", err);
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      setError(errorMessage); // Set error state
+      setError(errorMessage); 
       toast.error(errorMessage || `Failed to fetch workout plan for ${splitToFetch}.`);
-      // Do not change currentSplit or initialWorkoutData here if the fetch fails,
-      // so the UI can still show the last successfully loaded workout.
-      // If initialWorkoutData was for the 'splitToFetch' and it failed, it will be cleared by TodayWorkout's logic or remain null.
     } finally {
       setIsLoading(false);
     }

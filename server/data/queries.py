@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import json
-from sqlalchemy import create_engine, desc
+import uuid
+from sqlalchemy import create_engine, desc, update
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.exc import SQLAlchemyError
@@ -157,9 +158,28 @@ def fetch_active_workout_session(db: Session, session_id: str, user_id: str | No
         print(f"Error fetching active workout session: {e}")
         raise e
 
-def insert_or_update_active_workout_session(
+def add_active_workout_session(
     db: Session,
     user_id: str,
+    active_workout_session: ActiveWorkoutSession
+) -> Optional[str]:
+    """
+    Creates a new active workout session for a user.
+    """
+    try:
+        session_id = str(uuid.uuid4())
+        session_data = active_workout_session.model_dump()
+        db.add(ActiveWorkoutSessions(id=session_id, user_id=user_id, active_workout_session_json=session_data))
+        db.commit()
+        return session_id
+    except SQLAlchemyError as e:
+        db.rollback()
+        print(f"Error creating active workout session: {e}")
+        raise e
+    
+def modify_active_workout_session(
+    db: Session,
+    session_id: str,
     active_workout_session: ActiveWorkoutSession
 ) -> Optional[str]:
     """
@@ -167,25 +187,13 @@ def insert_or_update_active_workout_session(
     Returns the session ID (primary key).
     """
     try:
-        session_data = active_workout_session.model_dump()
+        result = db.execute(update(ActiveWorkoutSessions).where(ActiveWorkoutSessions.id == session_id).values(active_workout_session_json=active_workout_session.model_dump()))
 
-        stmt = insert(ActiveWorkoutSessions).values(
-            user_id=user_id,
-            active_workout_session_json=session_data
-        ).on_conflict_do_update(
-            index_elements=["user_id"],  # user_id must be unique
-            set_={
-                "active_workout_session_json": session_data
-            }
-        )
-
-        db.execute(stmt)
+        if result.rowcount == 0:
+            raise ValueError(f"Active workout session with ID '{session_id}' not found.")
+            
         db.commit()
-
-        # Fetch the updated or inserted row to get the session ID
-        session_row = db.query(ActiveWorkoutSessions).filter_by(user_id=user_id).first()
-        return session_row.id if session_row else None
-
+        return session_id
     except SQLAlchemyError as e:
         db.rollback()
         print(f"Error upserting active workout session: {e}")
@@ -196,7 +204,6 @@ def remove_active_workout_session(db: Session, active_workout_session_id: str, u
     Removes the active workout session for a user.
     """
     try:
-        # TODO: Add validations for user_id.
         db.query(ActiveWorkoutSessions).filter(ActiveWorkoutSessions.id == active_workout_session_id).delete()
         db.commit()
     except SQLAlchemyError as e:
