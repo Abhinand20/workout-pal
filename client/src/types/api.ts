@@ -66,9 +66,20 @@ export interface LogWorkoutData {
 }
 // The full API response will be: ApiResponse<LogWorkoutData>
 
+
+// CRUD operations for ActiveWorkoutSession.
+// TODO: Add JWT token instead of userId.
+export interface CreateActiveWorkoutSessionRequest {
+  activeWorkoutSession: ActiveWorkoutState;
+  userId: string;
+}
+
+export interface CreateActiveWorkoutSessionData {
+  activeWorkoutSessionId: string;
+}
+
 export interface GetActiveWorkoutSessionRequest {
   activeWorkoutSessionId: string;
-  userId: string | null;
 }
 
 export interface GetActiveWorkoutSessionData {
@@ -78,9 +89,12 @@ export interface GetActiveWorkoutSessionData {
 export interface UpdateActiveWorkoutSessionRequest {
   activeWorkoutSessionId: string;
   activeWorkoutState: ActiveWorkoutState;
-  userId: string | null;
 }
 
 export interface UpdateActiveWorkoutSessionData {
+  activeWorkoutSessionId: string;
+}
+
+export interface DeleteActiveWorkoutSessionRequest {
   activeWorkoutSessionId: string;
 }

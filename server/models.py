@@ -41,16 +41,6 @@ class WorkoutRoutine(BaseModel):
     ai_insight: Optional[str] = None
     routine: List[Exercise]
 
-class ActiveWorkoutSession(BaseModel):
-    workout_id: str
-    start_time: int
-    current_exercise_index: int
-    logged_data: List[Exercise]
-    routine: WorkoutRoutine
-    is_paused: bool
-    current_session_start_time: int
-    total_active_duration_ms: int
-    split: WorkoutSplit
 
 class LoggedSet(BaseModel):
     set_number: int
@@ -71,6 +61,16 @@ class LoggedExercise(BaseModel):
     status: LogExerciseStatus
     activeWorkTime_ms: Optional[int] = None
 
+class ActiveWorkoutSession(BaseModel):
+  workout_id: str
+  startTime: int
+  currentSessionStartTime: Optional[int] = None
+  totalActiveDuration_ms: int
+  isPaused: bool
+  routine: WorkoutRoutine
+  currentExerciseIndex: int
+  loggedData: List[LoggedExercise]
+  split: WorkoutSplit
 
 # --- Generic API Response Wrapper ---
 T = TypeVar('T')
@@ -117,7 +117,7 @@ class LogWorkoutData(BaseModel):
 
 # CRUD operations for ActiveWorkoutSession
 class CreateActiveWorkoutSessionRequest(BaseModel):
-    user_id: str
+    userId: str
     activeWorkoutSession: ActiveWorkoutSession
 
 class CreateActiveWorkoutSessionData(BaseModel):

@@ -5,7 +5,7 @@ TODOs:
 """
 
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Query, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Union, TypeVar, Generic, Any
@@ -100,7 +100,7 @@ async def create_active_workout_session(request: CreateActiveWorkoutSessionReque
     Creates a new active workout session for a user and returns the session id.
     """
     try:
-        active_workout_session_id = add_active_workout_session(db, request.user_id, request.activeWorkoutSession)
+        active_workout_session_id = add_active_workout_session(db, request.userId, request.activeWorkoutSession)
         if not active_workout_session_id:
             return ApiResponse[CreateActiveWorkoutSessionData](
                 success=False,

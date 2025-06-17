@@ -13,7 +13,7 @@ import { WorkoutRoutine, ActiveWorkoutState, LoggedExercise } from '@/types';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
-import { ApiResponse, FetchWorkoutData, FetchWorkoutParams, GetActiveWorkoutSessionData, LogWorkoutData, LogWorkoutRequest, WorkoutSplit } from '@/types/api';
+import { ApiResponse, CreateActiveWorkoutSessionData, FetchWorkoutData, FetchWorkoutParams, GetActiveWorkoutSessionData, LogWorkoutData, LogWorkoutRequest, UpdateActiveWorkoutSessionData, WorkoutSplit } from '@/types/api';
 
 // Define keys for local storage
 const WORKOUT_STATE_KEY = 'activeWorkoutState';
@@ -58,6 +58,7 @@ async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRo
 
 // TODO: Pass in user JWT token to the request so
 // that the backend can fetch the active workout session for the user.
+// TODO: Move these into a utils file.
 async function tryFetchActiveWorkoutState(activeWorkoutSessionId: string): Promise<ActiveWorkoutState | null> {
   const response = await fetch(`${API_URL}/api/workout/active`, {
     method: 'GET',
@@ -82,16 +83,79 @@ async function tryFetchActiveWorkoutState(activeWorkoutSessionId: string): Promi
   return null;
 }
 
+async function addActiveWorkoutSession(
+  userId: string,
+  activeWorkoutSession: ActiveWorkoutState,
+): Promise<CreateActiveWorkoutSessionData> {
+  const response = await fetch(`${API_URL}/api/workout/active`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ activeWorkoutSession: activeWorkoutSession, userId: userId }),
+  });
+  if (!response.ok) {
+    const errorData: ApiResponse<CreateActiveWorkoutSessionData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+    console.error('API Error:', errorData);
+    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+  }
+  const result: ApiResponse<CreateActiveWorkoutSessionData> = await response.json();
+  if (result.success && result.data) {
+    return result.data;
+  } else if (result.error) {
+    console.error('API returned an error:', result.error.message);
+    throw new Error(result.error.message);
+  } 
+  console.error('Unexpected API response structure:', result);
+  throw new Error('Unexpected API response structure.');
+}
+
 async function updateActiveWorkoutState(
   activeWorkoutSessionId: string,
   state: ActiveWorkoutState,
-): Promise<void> {
+): Promise<UpdateActiveWorkoutSessionData> {
   if (!API_URL) throw new Error("API url missing");
-  await fetch(`${API_URL}/api/workout/active`, {
-    method: "PUT",
+  const response = await fetch(`${API_URL}/api/workout/active`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ activeWorkoutSessionId: activeWorkoutSessionId, activeWorkoutState: state }),
   });
+  if (!response.ok) {
+    const errorData: ApiResponse<UpdateActiveWorkoutSessionData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+    console.error('API Error:', errorData);
+    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+  }
+  const result: ApiResponse<UpdateActiveWorkoutSessionData> = await response.json();
+  if (result.success && result.data) {
+    return result.data;
+  } else if (result.error) {
+    console.error('API returned an error:', result.error.message);
+    throw new Error(result.error.message);
+  }
+  console.error('Unexpected API response structure:', result);
+  throw new Error('Unexpected API response structure.');
+}
+
+async function deleteActiveWorkoutSession(
+  activeWorkoutSessionId: string,
+): Promise<void> {
+  const response = await fetch(`${API_URL}/api/workout/active`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ activeWorkoutSessionId: activeWorkoutSessionId }),
+  });
+  if (!response.ok) {
+    const errorData: ApiResponse<void> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+    console.error('API Error:', errorData);
+    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+  }
+  const result: ApiResponse<void> = await response.json();
+  if (result.success) {
+    return;
+  } else if (result.error) {
+    console.error('API returned an error:', result.error.message);
+    throw new Error(result.error.message);
+  }
+  console.error('Unexpected API response structure:', result);
+  throw new Error('Unexpected API response structure.');
 }
 
 export default function HomePage() {
@@ -104,8 +168,11 @@ export default function HomePage() {
   const [currentSplit, setCurrentSplit] = useState<WorkoutSplit>(WorkoutSplit.PUSH);
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkoutState | null>(null);
   const [isInitialLoadEffectComplete, setIsInitialLoadEffectComplete] = useState(false);
+  const [activeWorkoutSessionId, setActiveWorkoutSessionId] = useState<string | null>(null);
 
   // --- Data Fetching ---
+  // TODO: Fix dependency loop it is being called in useEffect
+  // which changes dependencies.
   const fetchWorkoutForSplit = useCallback(async (splitToFetch: WorkoutSplit) => {
     setIsLoading(true);
     console.log(`Attempting to fetch new workout data for split: ${splitToFetch}...`);
@@ -195,19 +262,33 @@ export default function HomePage() {
   }, [searchParams, router, fetchWorkoutForSplit]);
 
   useEffect(() => {
+    const saveActiveWorkout = async (activeWorkout: ActiveWorkoutState) => {
+      const resp = await addActiveWorkoutSession("test_user", activeWorkout);
+      setActiveWorkoutSessionId(resp.activeWorkoutSessionId);
+    }
+    const deleteActiveWorkout = async () => {
+      if (activeWorkoutSessionId) {
+        await deleteActiveWorkoutSession(activeWorkoutSessionId);
+        setActiveWorkoutSessionId(null);
+      }
+    }
     // Save active workout state to localStorage whenever it changes
     if (activeWorkout) {
         try {
-            localStorage.setItem(WORKOUT_STATE_KEY, JSON.stringify(activeWorkout));
+            // localStorage.setItem(WORKOUT_STATE_KEY, JSON.stringify(activeWorkout));
+            console.log("Saving active workout state to backend:", activeWorkout);
+            saveActiveWorkout(activeWorkout);
         } catch (e) {
             console.error("Failed to save workout state to localStorage:", e);
             toast.error("Could not save workout progress locally.");
         }
     } else {
       // If workout becomes inactive (finished or cancelled), remove active state from storage
-      localStorage.removeItem(WORKOUT_STATE_KEY);
+      // localStorage.removeItem(WORKOUT_STATE_KEY);
+      deleteActiveWorkout();
+      setActiveWorkoutSessionId(null);
     }
-  }, [activeWorkout]);
+  }, [activeWorkout, activeWorkoutSessionId]);
   
 
 
