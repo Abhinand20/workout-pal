@@ -70,7 +70,7 @@ export default function LandingPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="text-center">
-            <p className="text-lg">Today's recommended workout focus:</p>
+            <p className="text-lg">Today&apos;s recommended workout focus:</p>
             <p className="text-2xl font-semibold text-primary">{recommendedSplit || 'Choose a split'}</p>
           </div>
 
@@ -101,7 +101,7 @@ export default function LandingPage() {
             disabled={!selectedSplit}
             className="w-full"
           >
-            Generate Today's Workout
+            Generate Today&apos;s Workout
           </Button>
         </CardFooter>
       </Card>

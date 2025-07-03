@@ -1,12 +1,12 @@
+"use client"; // Make the page a Client Component to use hooks
 /*
 This page is the main entry point for the workout page. It does the following:
 - Fetches the workout routine for the current split
 - Displays the workout routine
 - Redirects to the workout logging logic when the start workout button is clicked
 */
-"use client"; // Make the page a Client Component to use hooks
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TodayWorkout } from '@/components/today-workout';
 import { WorkoutRoutine, ActiveWorkoutState, LoggedExercise } from '@/types';
@@ -14,15 +14,12 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
 import { ApiResponse, CreateActiveWorkoutSessionData, FetchWorkoutData, FetchWorkoutParams, GetActiveWorkoutSessionData, LogWorkoutData, LogWorkoutRequest, UpdateActiveWorkoutSessionData, WorkoutSplit } from '@/types/api';
+import { useSession } from '@/lib/auth-client';
 
-// Define keys for local storage
-const WORKOUT_STATE_KEY = 'activeWorkoutState';
-const INITIAL_WORKOUT_KEY = 'initialWorkoutData';
-const INITIAL_WORKOUT_SPLIT_KEY = 'initialWorkoutSplit';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Fetch today's workout routine from the API.
-// TODO: Add user JWT token to the request.
 async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRoutine> {
   if (!API_URL) {
     console.error("API URL is not configured.");
@@ -56,132 +53,26 @@ async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRo
   }
 }
 
-// TODO: Pass in user JWT token to the request so
-// that the backend can fetch the active workout session for the user.
-// TODO: Move these into a utils file.
-async function tryFetchActiveWorkoutState(activeWorkoutSessionId: string): Promise<ActiveWorkoutState | null> {
-  const response = await fetch(`${API_URL}/api/workout/active`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-    },
-    body: JSON.stringify({ activeWorkoutSessionId: activeWorkoutSessionId, userId: null }),
-  });
-  if (!response.ok) {
-    // If the server responded with an error status (4xx or 5xx)
-    const errorData: ApiResponse<GetActiveWorkoutSessionData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
-    console.error('API Error:', errorData);
-    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
-  }
-  const result: ApiResponse<GetActiveWorkoutSessionData> = await response.json();
-  if (result.success && result.data) {
-    return result.data.activeWorkoutSession; // Return the actual workout state
-  } else if (result.error) {
-    console.error('API returned an error:', result.error.message);
-    return null;
-  } 
-  return null;
-}
-
-async function addActiveWorkoutSession(
-  userId: string,
-  activeWorkoutSession: ActiveWorkoutState,
-): Promise<CreateActiveWorkoutSessionData> {
-  const response = await fetch(`${API_URL}/api/workout/active`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ activeWorkoutSession: activeWorkoutSession, userId: userId }),
-  });
-  if (!response.ok) {
-    const errorData: ApiResponse<CreateActiveWorkoutSessionData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
-    console.error('API Error:', errorData);
-    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
-  }
-  const result: ApiResponse<CreateActiveWorkoutSessionData> = await response.json();
-  if (result.success && result.data) {
-    return result.data;
-  } else if (result.error) {
-    console.error('API returned an error:', result.error.message);
-    throw new Error(result.error.message);
-  } 
-  console.error('Unexpected API response structure:', result);
-  throw new Error('Unexpected API response structure.');
-}
-
-async function updateActiveWorkoutState(
-  activeWorkoutSessionId: string,
-  state: ActiveWorkoutState,
-): Promise<UpdateActiveWorkoutSessionData> {
-  if (!API_URL) throw new Error("API url missing");
-  const response = await fetch(`${API_URL}/api/workout/active`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ activeWorkoutSessionId: activeWorkoutSessionId, activeWorkoutState: state }),
-  });
-  if (!response.ok) {
-    const errorData: ApiResponse<UpdateActiveWorkoutSessionData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
-    console.error('API Error:', errorData);
-    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
-  }
-  const result: ApiResponse<UpdateActiveWorkoutSessionData> = await response.json();
-  if (result.success && result.data) {
-    return result.data;
-  } else if (result.error) {
-    console.error('API returned an error:', result.error.message);
-    throw new Error(result.error.message);
-  }
-  console.error('Unexpected API response structure:', result);
-  throw new Error('Unexpected API response structure.');
-}
-
-async function deleteActiveWorkoutSession(
-  activeWorkoutSessionId: string,
-): Promise<void> {
-  const response = await fetch(`${API_URL}/api/workout/active`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ activeWorkoutSessionId: activeWorkoutSessionId }),
-  });
-  if (!response.ok) {
-    const errorData: ApiResponse<void> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
-    console.error('API Error:', errorData);
-    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
-  }
-  const result: ApiResponse<void> = await response.json();
-  if (result.success) {
-    return;
-  } else if (result.error) {
-    console.error('API returned an error:', result.error.message);
-    throw new Error(result.error.message);
-  }
-  console.error('Unexpected API response structure:', result);
-  throw new Error('Unexpected API response structure.');
-}
-
-export default function HomePage() {
+function WorkoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const session = useSession();
 
   const [initialWorkoutData, setInitialWorkoutData] = useState<WorkoutRoutine | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentSplit, setCurrentSplit] = useState<WorkoutSplit>(WorkoutSplit.PUSH);
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkoutState | null>(null);
-  const [isInitialLoadEffectComplete, setIsInitialLoadEffectComplete] = useState(false);
-  const [activeWorkoutSessionId, setActiveWorkoutSessionId] = useState<string | null>(null);
+
 
   // --- Data Fetching ---
-  // TODO: Fix dependency loop it is being called in useEffect
-  // which changes dependencies.
   const fetchWorkoutForSplit = useCallback(async (splitToFetch: WorkoutSplit) => {
     setIsLoading(true);
     console.log(`Attempting to fetch new workout data for split: ${splitToFetch}...`);
     try {
       const workout = await fetchTodaysWorkout({ split: splitToFetch });
       setInitialWorkoutData(workout);
-      setCurrentSplit(splitToFetch); 
-      setError(null); 
-      console.log("Fetched workout data:", workout);
+      setCurrentSplit(splitToFetch);
     } catch (err) {
       console.error("Error fetching workout:", err);
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
@@ -190,107 +81,21 @@ export default function HomePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, currentSplit]); // Removed initialWorkoutData and error from deps to avoid loops
+  }, []);
 
-  // --- Local Storage Effect ---
+  // --- Query Param Effect ---
+  // This effect is responsible for fetching the workout data for the split specified in the query param.
+  // If no query param is present, it redirects to the landing page.
   useEffect(() => {
-    let loadedActive = false;
-
-    // 1. Try loading active workout state
-    try {
-      const savedActiveState = localStorage.getItem(WORKOUT_STATE_KEY);
-      if (savedActiveState) {
-        const parsedState: ActiveWorkoutState = JSON.parse(savedActiveState);
-        setActiveWorkout(parsedState);
-        loadedActive = true;
-        setIsLoading(false);
-        console.log("Loaded active workout session from localStorage.");
-        setIsInitialLoadEffectComplete(true);
-        return; // Active workout found, main page logic takes over.
-      }
-    } catch (e) {
-      console.error("Failed to load active workout state from localStorage:", e);
-      localStorage.removeItem(WORKOUT_STATE_KEY);
-    }
-
-    // 2. No active workout, check query params and cache for initial workout
     const querySplit = searchParams.get('split') as WorkoutSplit | null;
-    const cachedDataJSON = localStorage.getItem(INITIAL_WORKOUT_KEY);
-    const cachedSplitString = localStorage.getItem(INITIAL_WORKOUT_SPLIT_KEY);
-    const cachedSplit = cachedSplitString ? cachedSplitString as WorkoutSplit : null;
-
     if (querySplit) {
       console.log(`Query split detected: ${querySplit}`);
-      if (cachedDataJSON && cachedSplit === querySplit) {
-        console.log("Query split matches cached data. Using cache.");
-        try {
-          setInitialWorkoutData(JSON.parse(cachedDataJSON));
-          setCurrentSplit(cachedSplit);
-          setIsLoading(false);
-        } catch (e) {
-          console.error("Failed to parse cached initial workout data (with query split):", e);
-          localStorage.removeItem(INITIAL_WORKOUT_KEY);
-          localStorage.removeItem(INITIAL_WORKOUT_SPLIT_KEY);
-          fetchWorkoutForSplit(querySplit);
-        }
-      } else {
-        console.log("Query split present, but differs from cache or cache empty. Fetching new data.");
-        fetchWorkoutForSplit(querySplit);
-      }
+      fetchWorkoutForSplit(querySplit);
     } else { // No query split
-      console.log("No query split in URL.");
-      if (cachedDataJSON && cachedSplit) {
-        console.log("No query split, but cached data found. Using cache for display, but should go via landing if user needs to pick.");
-         try {
-           setInitialWorkoutData(JSON.parse(cachedDataJSON));
-           setCurrentSplit(cachedSplit);
-           setIsLoading(false);
-         } catch (e) {
-           console.error("Failed to parse cached initial workout data (no query split):", e);
-           localStorage.removeItem(INITIAL_WORKOUT_KEY);
-           localStorage.removeItem(INITIAL_WORKOUT_SPLIT_KEY);
-           router.replace('/landing');
-         }
-        // If the intent is *always* to go via landing if no query param, then:
-        // router.replace('/landing');
-      } else {
-        console.log("No active session, no query split, no cached data. Redirecting to landing page.");
-        router.replace('/landing');
-      }
+      console.log("No query split in URL, redirecting to landing page.");
+      router.replace('/landing');
     }
-    setIsInitialLoadEffectComplete(true);
-  }, [searchParams, router, fetchWorkoutForSplit]);
-
-  useEffect(() => {
-    const saveActiveWorkout = async (activeWorkout: ActiveWorkoutState) => {
-      const resp = await addActiveWorkoutSession("test_user", activeWorkout);
-      setActiveWorkoutSessionId(resp.activeWorkoutSessionId);
-    }
-    const deleteActiveWorkout = async () => {
-      if (activeWorkoutSessionId) {
-        await deleteActiveWorkoutSession(activeWorkoutSessionId);
-        setActiveWorkoutSessionId(null);
-      }
-    }
-    // Save active workout state to localStorage whenever it changes
-    if (activeWorkout) {
-        try {
-            // localStorage.setItem(WORKOUT_STATE_KEY, JSON.stringify(activeWorkout));
-            console.log("Saving active workout state to backend:", activeWorkout);
-            saveActiveWorkout(activeWorkout);
-        } catch (e) {
-            console.error("Failed to save workout state to localStorage:", e);
-            toast.error("Could not save workout progress locally.");
-        }
-    } else {
-      // If workout becomes inactive (finished or cancelled), remove active state from storage
-      // localStorage.removeItem(WORKOUT_STATE_KEY);
-      deleteActiveWorkout();
-      setActiveWorkoutSessionId(null);
-    }
-  }, [activeWorkout, activeWorkoutSessionId]);
-  
-
+  }, [searchParams, fetchWorkoutForSplit]);
 
   // --- Workout Control Handlers ---
   const handleStartWorkout = (routineToStart: WorkoutRoutine) => {
@@ -342,7 +147,7 @@ export default function HomePage() {
   // --- Render Logic ---
   const renderContent = () => {
     // More robust loading check for the very initial load
-    if (isLoading && !isInitialLoadEffectComplete && !initialWorkoutData) {
+    if (isLoading && !initialWorkoutData) {
         return (
             <div className="flex items-center justify-center h-40">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -351,10 +156,10 @@ export default function HomePage() {
         );
     }
     
-    // If initial load is complete OR we have some data (even if also loading new data)
+    // If we have some data (even if also loading new data)
     // and we have a currentSplit (meaning a workout was attempted or loaded)
     // OR if there's an error that needs to be shown with the TodayWorkout context
-    if (isInitialLoadEffectComplete && (currentSplit || initialWorkoutData || error)) {
+    if (currentSplit || initialWorkoutData || error) {
       return (
         <TodayWorkout
           workoutData={initialWorkoutData}
@@ -395,5 +200,14 @@ export default function HomePage() {
        )}
        {renderContent()}
     </main>
+  );
+}
+
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <WorkoutPage />
+    </Suspense>
   );
 }
