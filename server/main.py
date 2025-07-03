@@ -159,7 +159,7 @@ async def delete_active_workout_session(request: DeleteActiveWorkoutSessionReque
 
 # TODO: Extend this to enable re-generation based on request params or add re-generation endpoint.
 @app.get("/api/workout/today", response_model=ApiResponse[FetchWorkoutData])
-async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), db: Session = Depends(get_db)):
+async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), user_id: str = Query(...), db: Session = Depends(get_db)):
     """
     Fetches today's workout routine.
     Optionally allows filtering by workout split.
@@ -175,7 +175,6 @@ async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), db: S
     # 5. Prompt LLM to generate the workout
     # 6. Return the workout
     try:
-        user_id = "test_user" # TODO: Get user_id from the request or JWT token
         cached_workout_routine = get_cached_user_workout_routine(db, user_id, split)
         if cached_workout_routine:
             print(f"Found cached workout routine for split: {split}, returning it.")

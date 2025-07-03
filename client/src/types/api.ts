@@ -23,6 +23,7 @@ export enum WorkoutSplit {
 // Request parameters
 export interface FetchWorkoutParams {
   split?: WorkoutSplit;
+  userId: string;
   // Add other potential filtering/input parameters here
   // For example: date?: string; (if fetching for a specific date other than today)
 }

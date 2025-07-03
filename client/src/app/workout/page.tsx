@@ -13,9 +13,8 @@ import { WorkoutRoutine, ActiveWorkoutState, LoggedExercise } from '@/types';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
-import { ApiResponse, CreateActiveWorkoutSessionData, FetchWorkoutData, FetchWorkoutParams, GetActiveWorkoutSessionData, LogWorkoutData, LogWorkoutRequest, UpdateActiveWorkoutSessionData, WorkoutSplit } from '@/types/api';
+import { ApiResponse, FetchWorkoutData, FetchWorkoutParams, WorkoutSplit } from '@/types/api';
 import { useSession } from '@/lib/auth-client';
-
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -27,16 +26,15 @@ async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRo
   }
   const url = new URL(`${API_URL}/api/workout/today`);
   url.searchParams.set('split', params.split || WorkoutSplit.PUSH);
+  url.searchParams.set('user_id', params.userId);
   const response = await fetch(url.toString(), {
     method: 'GET',
     headers: {
-      // 'Content-Type': 'application/json',
       'Accept': 'application/json',
     },
   });
   
   if (!response.ok) {
-    // If the server responded with an error status (4xx or 5xx)
     const errorData: ApiResponse<FetchWorkoutData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
     console.error('API Error:', errorData);
     throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
@@ -56,8 +54,7 @@ async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRo
 function WorkoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const session = useSession();
-
+  const { data: sessionData, isPending, error: sessionError } = useSession();
   const [initialWorkoutData, setInitialWorkoutData] = useState<WorkoutRoutine | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +67,11 @@ function WorkoutPage() {
     setIsLoading(true);
     console.log(`Attempting to fetch new workout data for split: ${splitToFetch}...`);
     try {
-      const workout = await fetchTodaysWorkout({ split: splitToFetch });
+      var userId = sessionData?.user.id;
+      if (!userId) {
+        throw new Error("User ID is not set");
+      }
+      const workout = await fetchTodaysWorkout({ split: splitToFetch, userId: userId });
       setInitialWorkoutData(workout);
       setCurrentSplit(splitToFetch);
     } catch (err) {
@@ -81,12 +82,15 @@ function WorkoutPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [sessionData]);
 
   // --- Query Param Effect ---
   // This effect is responsible for fetching the workout data for the split specified in the query param.
   // If no query param is present, it redirects to the landing page.
   useEffect(() => {
+    if (isPending) {
+      return;
+    }
     const querySplit = searchParams.get('split') as WorkoutSplit | null;
     if (querySplit) {
       console.log(`Query split detected: ${querySplit}`);
@@ -95,7 +99,7 @@ function WorkoutPage() {
       console.log("No query split in URL, redirecting to landing page.");
       router.replace('/landing');
     }
-  }, [searchParams, fetchWorkoutForSplit]);
+  }, [searchParams, fetchWorkoutForSplit, isPending, router]);
 
   // --- Workout Control Handlers ---
   const handleStartWorkout = (routineToStart: WorkoutRoutine) => {
@@ -147,7 +151,7 @@ function WorkoutPage() {
   // --- Render Logic ---
   const renderContent = () => {
     // More robust loading check for the very initial load
-    if (isLoading && !initialWorkoutData) {
+    if ((isLoading && !initialWorkoutData) || isPending) {
         return (
             <div className="flex items-center justify-center h-40">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
