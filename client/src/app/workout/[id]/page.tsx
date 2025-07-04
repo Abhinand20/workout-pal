@@ -54,6 +54,38 @@ async function fetchActiveWorkoutSession(
   throw new Error('Unexpected API response structure.');
 }
 
+async function deleteActiveWorkoutSession(
+  userId: string | undefined,
+  activeWorkoutSessionId: string,
+): Promise<void> {
+  if (!userId || !activeWorkoutSessionId) {
+    throw new Error("User ID or active workout session ID is not set");
+  }
+  const url = new URL(`${API_URL}/api/workout/active`);
+  url.searchParams.set("active_workout_session_id", activeWorkoutSessionId);
+  url.searchParams.set("user_id", userId);
+  const response = await fetch(url.toString(), {
+    method: 'DELETE',
+    headers: {
+      'Accept': 'application/json',
+    },
+  });
+  if (!response.ok) {
+    const errorData: ApiResponse<GetActiveWorkoutSessionData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+    console.error('API Error:', errorData);
+    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+  }
+  const result: ApiResponse<void> = await response.json();
+  if (result.success) {
+    return;
+  } else if (result.error) {
+    console.error('API returned an error:', result.error.message);
+    throw new Error(result.error.message);
+  } 
+  console.error('Unexpected API response structure:', result);
+  throw new Error('Unexpected API response structure.');
+}
+
 export default function WorkoutLoggerPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -239,11 +271,16 @@ export default function WorkoutLoggerPage() {
     });
   }, []);
 
-  const handleCancelWorkout = () => {
+  const handleCancelWorkout = useCallback(async () => {
+    try {
+      await deleteActiveWorkoutSession(sessionData?.user.id, id);
+    } catch (err) {
+      console.error("Error deleting active workout session:", err);
+      toast.error("Error deleting active workout session.");
+    }
     setActiveWorkout(null);
-    // TODO: Delete active workout session from backend
     router.push("/landing");
-  };
+  }, [sessionData?.user.id, id, router]);
 
   // --- Finish Workout ---
   const handleFinishWorkout = useCallback(async () => {
@@ -271,6 +308,7 @@ export default function WorkoutLoggerPage() {
       totalDurationSeconds: (Date.now() - activeWorkout.startTime) / 1000,
       notes: '',
       split: activeWorkout.split,
+      userId: sessionData?.user.id,
     };
     try {
       console.log("Sending workout log to server:", JSON.stringify(payload));
@@ -298,10 +336,15 @@ export default function WorkoutLoggerPage() {
         console.error('Unexpected API response structure:', result);
         throw new Error('Unexpected API response structure.');
       }
-      // TODO: Delete active workout session from backend
       // Add a delay before pushing to landing
       // TODO: Redirect to the finished workout page instead of landing page
       // Populate the finished workout page with the workout data and insights
+      try {
+        await deleteActiveWorkoutSession(sessionData?.user.id, id);
+      } catch (err) {
+        console.error("Error deleting active workout session:", err);
+        toast.error("Error deleting active workout session.");
+      }
       setTimeout(() => {
         router.push('/landing');
       }, 2000);
@@ -314,7 +357,7 @@ export default function WorkoutLoggerPage() {
     } finally {
       setIsFinishing(false);
     }
-  }, [activeWorkout, router]);
+  }, [activeWorkout, router, sessionData?.user.id]);
 
   // ─────────────────────────────────────
   // render

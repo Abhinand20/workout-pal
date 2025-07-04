@@ -58,6 +58,7 @@ export interface LogWorkoutRequest {
   totalDurationSeconds?: number; // Total time spent on the workout in seconds
   notes?: string; // Overall notes for the logged workout session
   split: WorkoutSplit; // The split of the workout
+  userId: string | undefined;
 }
 
 export interface LogWorkoutData {

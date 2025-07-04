@@ -141,7 +141,7 @@ async def update_active_workout_session(request: UpdateActiveWorkoutSessionReque
         )
 
 @app.delete("/api/workout/active", response_model=ApiResponse[None])
-async def delete_active_workout_session(request: DeleteActiveWorkoutSessionRequest, db: Session = Depends(get_db)):
+async def delete_active_workout_session(request: DeleteActiveWorkoutSessionRequest = Depends(), db: Session = Depends(get_db)):
     """
     Deletes the active workout session for a user.
     """
@@ -266,11 +266,8 @@ async def log_workout_data(request: LogWorkoutRequest, db: Session = Depends(get
     Receives logged workout data from the client and persists it.
     """
     try:
-        # For now, use a hardcoded user_id.
-        # In a real application, this would come from an authentication system.
-        user_id = "default_user"
         print(f"Received request to log workout: {request}")
-        persisted_log = create_workout_log(db, user_id, request)
+        persisted_log = create_workout_log(db, request.userId, request)
 
         if not persisted_log:
             return ApiResponse[LogWorkoutData](

@@ -103,6 +103,7 @@ class EditExerciseData(BaseModel):
 
 # 3. Log Workout Data
 class LogWorkoutRequest(BaseModel):
+    userId: str
     workoutRoutineId: str
     loggedExercises: List[LoggedExercise]
     startTime: Optional[int] = None
