@@ -70,7 +70,7 @@ init_db()
 
 
 @app.get("/api/workout/active", response_model=ApiResponse[GetActiveWorkoutSessionData])
-async def get_active_workout_session(request: GetActiveWorkoutSessionRequest, db: Session = Depends(get_db)):
+async def get_active_workout_session(request: GetActiveWorkoutSessionRequest = Depends(), db: Session = Depends(get_db)):
     """
     Gets the active workout session for a user.
     """

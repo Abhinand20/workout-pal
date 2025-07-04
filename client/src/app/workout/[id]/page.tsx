@@ -1,7 +1,6 @@
 /*
 This page handles workout logging logic for a specific generated workout.
 It does the following:
-- Fetches the active workout state from local storage
 - Handles timers and set statuses to track the progress of the workout
 - Handles navigation between exercises
 - Handles finishing the workout and saving the workout to the backend
@@ -18,14 +17,47 @@ import {
   LoggedSet,
 } from "@/types";
 import { WorkoutLogging } from "@/components/log-workout";
-import { ApiResponse, LogWorkoutData, LogWorkoutRequest } from "@/types/api";
+import { ApiResponse, GetActiveWorkoutSessionData, LogWorkoutData, LogWorkoutRequest } from "@/types/api";
+import { useSession } from "@/lib/auth-client";
 
-const WORKOUT_STATE_KEY = "activeWorkoutState";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+async function fetchActiveWorkoutSession(
+  userId: string | undefined,
+  activeWorkoutSessionId: string,
+): Promise<GetActiveWorkoutSessionData> {
+  if (!userId || !activeWorkoutSessionId) {
+    throw new Error("User ID or active workout session ID is not set");
+  }
+  const url = new URL(`${API_URL}/api/workout/active`);
+  url.searchParams.set("active_workout_session_id", activeWorkoutSessionId);
+  url.searchParams.set("user_id", userId);
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+    },
+  });
+  if (!response.ok) {
+    const errorData: ApiResponse<GetActiveWorkoutSessionData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+    console.error('API Error:', errorData);
+    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+  }
+  const result: ApiResponse<GetActiveWorkoutSessionData> = await response.json();
+  if (result.success && result.data) {
+    return result.data;
+  } else if (result.error) {
+    console.error('API returned an error:', result.error.message);
+    throw new Error(result.error.message);
+  } 
+  console.error('Unexpected API response structure:', result);
+  throw new Error('Unexpected API response structure.');
+}
 
 export default function WorkoutLoggerPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: sessionData, isPending, error: sessionError } = useSession();
 
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkoutState | null>(
     null
@@ -38,32 +70,35 @@ export default function WorkoutLoggerPage() {
   } | null>(null);
 
   // ─────────────────────────────────────
-  // bootstrap - load activeWorkout from LS
+  // bootstrap - load activeWorkout from backend
   // ─────────────────────────────────────
   useEffect(() => {
-    try {
-      // TODO: Once workout state is stored in the backend, we can replace this with a fetch call to get the active workout state.
-      // How often should the backend be updated with the active workout state?
-      const json = localStorage.getItem(WORKOUT_STATE_KEY);
-      if (!json) throw new Error("No active workout found");
-      const parsed: ActiveWorkoutState = JSON.parse(json);
-
-      if (parsed.workout_id.toString() !== id) {
-        throw new Error("Workout id mismatch");
+    const fetchActiveWorkout = async () => {
+      if (isPending) {
+        return;
       }
-      setActiveWorkout(parsed);
+      if (!sessionData?.user.id) {
+        throw new Error("User ID is not set");
+      }
+      const activeWorkoutSession = await fetchActiveWorkoutSession(sessionData.user.id, id);
+      if (!activeWorkoutSession) throw new Error("No active workout found");
+      setActiveWorkout(activeWorkoutSession.activeWorkoutSession);
+    }
+
+    try {
+      fetchActiveWorkout();
     } catch (e) {
       toast.error("No active workout session -- redirecting");
       router.replace("/workout");
     }
-  }, [id, router]);
+  }, [id, router, sessionData, isPending]);
 
-  // keep LS in-sync
-  useEffect(() => {
-    if (activeWorkout) {
-      localStorage.setItem(WORKOUT_STATE_KEY, JSON.stringify(activeWorkout));
-    }
-  }, [activeWorkout]);
+  // TODO: Update backend with active workout state once it changes.
+  // useEffect(() => {
+  //   if (activeWorkout) {
+  //     localStorage.setItem(WORKOUT_STATE_KEY, JSON.stringify(activeWorkout));
+  //   }
+  // }, [activeWorkout]);
 
   const handleUpdateLog = useCallback((exerciseIndex: number, setIndex: number, field: keyof LoggedSet, value: number | string) => {
      setActiveWorkout(prev => {
@@ -206,7 +241,7 @@ export default function WorkoutLoggerPage() {
 
   const handleCancelWorkout = () => {
     setActiveWorkout(null);
-    localStorage.removeItem(WORKOUT_STATE_KEY);
+    // TODO: Delete active workout session from backend
     router.push("/landing");
   };
 
@@ -263,6 +298,7 @@ export default function WorkoutLoggerPage() {
         console.error('Unexpected API response structure:', result);
         throw new Error('Unexpected API response structure.');
       }
+      // TODO: Delete active workout session from backend
       // Add a delay before pushing to landing
       // TODO: Redirect to the finished workout page instead of landing page
       // Populate the finished workout page with the workout data and insights

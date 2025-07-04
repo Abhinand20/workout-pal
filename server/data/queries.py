@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import json
+from sqlalchemy.exc import IntegrityError
 import uuid
 from sqlalchemy import create_engine, desc, update
 from sqlalchemy.orm import Session
@@ -166,9 +167,10 @@ def add_active_workout_session(
     """
     Creates a new active workout session for a user.
     """
+    session_id = str(uuid.uuid4())
+    session_data = active_workout_session.model_dump()
+    print(f"Adding active workout session: {session_id}")
     try:
-        session_id = str(uuid.uuid4())
-        session_data = active_workout_session.model_dump()
         db.add(ActiveWorkoutSessions(id=session_id, user_id=user_id, active_workout_session_json=session_data))
         db.commit()
         return session_id

@@ -13,7 +13,7 @@ import { WorkoutRoutine, ActiveWorkoutState, LoggedExercise } from '@/types';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
-import { ApiResponse, FetchWorkoutData, FetchWorkoutParams, WorkoutSplit } from '@/types/api';
+import { ApiResponse, CreateActiveWorkoutSessionData, FetchWorkoutData, FetchWorkoutParams, WorkoutSplit } from '@/types/api';
 import { useSession } from '@/lib/auth-client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -49,6 +49,31 @@ async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRo
     console.error('Unexpected API response structure:', result);
     throw new Error('Unexpected API response structure.');
   }
+}
+
+async function addActiveWorkoutSession(
+  userId: string,
+  activeWorkoutSession: ActiveWorkoutState,
+): Promise<CreateActiveWorkoutSessionData> {
+  const response = await fetch(`${API_URL}/api/workout/active`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ activeWorkoutSession: activeWorkoutSession, userId: userId }),
+  });
+  if (!response.ok) {
+    const errorData: ApiResponse<CreateActiveWorkoutSessionData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+    console.error('API Error:', errorData);
+    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+  }
+  const result: ApiResponse<CreateActiveWorkoutSessionData> = await response.json();
+  if (result.success && result.data) {
+    return result.data;
+  } else if (result.error) {
+    console.error('API returned an error:', result.error.message);
+    throw new Error(result.error.message);
+  } 
+  console.error('Unexpected API response structure:', result);
+  throw new Error('Unexpected API response structure.');
 }
 
 function WorkoutPage() {
@@ -99,10 +124,13 @@ function WorkoutPage() {
       console.log("No query split in URL, redirecting to landing page.");
       router.replace('/landing');
     }
-  }, [searchParams, fetchWorkoutForSplit, isPending, router]);
+  }, [searchParams, fetchWorkoutForSplit, isPending, sessionData]);
 
   // --- Workout Control Handlers ---
-  const handleStartWorkout = (routineToStart: WorkoutRoutine) => {
+  const handleStartWorkout = async (routineToStart: WorkoutRoutine) => {
+    if (!sessionData?.user.id) {
+      throw new Error("User ID is not set");
+    }
     const initialLoggedData: LoggedExercise[] = routineToStart.routine.map(exercise => ({
       exercise_id: exercise.id,
       name: exercise.name,
@@ -120,7 +148,7 @@ function WorkoutPage() {
       status: 'pending',
     }));
 
-    setActiveWorkout({
+    const activeWorkout = {
       workout_id: routineToStart.id,
       startTime: Date.now(),
       currentSessionStartTime: Date.now(),
@@ -130,9 +158,17 @@ function WorkoutPage() {
       totalActiveDuration_ms: 0,
       isPaused: false,
       split: currentSplit,
-    });
-    console.log("Workout started, initial loggedData:", initialLoggedData);
-    router.push(`/workout/${routineToStart.id}`);
+    };
+    setActiveWorkout(activeWorkout);
+    try {
+      const activeSessionResponse = await addActiveWorkoutSession(sessionData.user.id, activeWorkout);
+      const sessionId = activeSessionResponse.active_workout_session_id;
+      console.log(`Workout started, sessionId: ${sessionId}`);
+      router.push(`/workout/${sessionId}`);
+    } catch (err) {
+      console.error("Error starting workout:", err);
+      toast.error("Failed to start workout. Please try again.");
+    }
   };
 
 

@@ -76,11 +76,11 @@ export interface CreateActiveWorkoutSessionRequest {
 }
 
 export interface CreateActiveWorkoutSessionData {
-  activeWorkoutSessionId: string;
+  active_workout_session_id: string;
 }
 
 export interface GetActiveWorkoutSessionRequest {
-  activeWorkoutSessionId: string;
+  active_workout_session_id: string;
 }
 
 export interface GetActiveWorkoutSessionData {

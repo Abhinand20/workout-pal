@@ -71,7 +71,7 @@ class ActiveWorkoutSessions(Base):
     __tablename__ = "active_workout_sessions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, index=True, unique=True)
+    user_id = Column(String, index=True)
     active_workout_session_json = Column(JSON)
 
 
