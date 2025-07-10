@@ -68,6 +68,18 @@ def get_full_body_exercises(db: Session):
     full_body_exercises = search_exercises(full_body_filter, db)
     return full_body_exercises
 
+def get_legs_exercises(db: Session):
+    quad_filter = ExerciseFilter(primary_muscle=PrimaryMuscle.QUADRICEPS)
+    hamstring_filter = ExerciseFilter(primary_muscle=PrimaryMuscle.HAMSTRINGS)
+    calf_filter = ExerciseFilter(primary_muscle=PrimaryMuscle.CALVES)
+    glute_filter = ExerciseFilter(primary_muscle=PrimaryMuscle.GLUTES)
+    leg_exercises = search_exercises(quad_filter, db) + search_exercises(hamstring_filter, db) + search_exercises(calf_filter, db) + search_exercises(glute_filter, db)
+    return leg_exercises
+
+def get_shoulders_exercises(db: Session):
+    shoulder_filter = ExerciseFilter(primary_muscle=PrimaryMuscle.SHOULDERS)
+    shoulder_exercises = search_exercises(shoulder_filter, db)
+
 def create_workout_log(db: Session, user_id: str, log_data: LogWorkoutRequest) -> Optional[WorkoutLog]:
     """
     Creates a new workout log entry in the database along with its associated logged exercises.
@@ -252,6 +264,23 @@ def get_cached_user_workout_routine(db: Session, user_id: str, split: WorkoutSpl
     except SQLAlchemyError as e:
         print(f"Error fetching cached user workout routine: {e}")
         raise e
+
+def get_user_workout_history_by_split(db: Session, user_id: str, split: WorkoutSplit) -> Optional[List[LoggedExerciseDB]]:
+    """
+    Retrieves the most recent logged exercises for a user and split.
+    """
+    try:
+        latest_workout_log = db.query(WorkoutLog).filter(WorkoutLog.user_id == user_id, WorkoutLog.split == split).order_by(desc(WorkoutLog.start_time)).first()
+        if latest_workout_log:
+            log_id = latest_workout_log.id
+            logged_exercises = get_logged_exercises_for_log(db, log_id)
+            return logged_exercises
+        else:
+            return None
+    except SQLAlchemyError as e:
+        print(f"Error fetching user workout history by split: {e}")
+        raise e
+
 
 # TODO: Add functions for updating and deleting workout logs if needed
 # TODO: Add functions for more complex queries, e.g., exercise history for a specific exercise_id

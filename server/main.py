@@ -36,7 +36,9 @@ from data.queries import (
     get_push_exercises, 
     get_pull_exercises, 
     get_abs_exercises, 
+    get_legs_exercises,
     get_full_body_exercises,
+    get_user_workout_history_by_split,
     fetch_active_workout_session,
     modify_active_workout_session,
     remove_active_workout_session,
@@ -170,7 +172,7 @@ async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), user_
     """
     # 1. Query stretching exercises
     # 2. Query exercises for the workout split
-    # 3. (to be implemented) Query user's workout history
+    # 3. Query user's workout history
     # 4. (to be implemented) Query user's preferences
     # 5. Prompt LLM to generate the workout
     # 6. Return the workout
@@ -192,20 +194,18 @@ async def fetch_today_workout(split: Optional[WorkoutSplit] = Query(None), user_
             primary_exercises = get_abs_exercises(db)
         elif split == WorkoutSplit.FULL_BODY:
             primary_exercises = get_full_body_exercises(db)
-        else:
-            return ApiResponse[FetchWorkoutData](
-                success=False,
-                error=ApiErrorDetail(message="Not implemented", code="NOT_IMPLEMENTED")
-            )
+        elif split == WorkoutSplit.LEGS:
+            primary_exercises = get_legs_exercises(db)
             
-        # (TODO) Query workout history for the user
-            # 3. Generate the workout using the LLM service
-        # For now, use a default prompt since user preferences aren't implemented yet
+        # Get user's workout history for the split
+        user_workout_history = get_user_workout_history_by_split(db, user_id, split)
         curr_split = split.value if split else "PUSH"
-        default_prompt = f"Create a workout routine for the {curr_split} split for a 26 year old male who is 180 lbs and 5'10 looking to gain muscle mass and strength."
+        # TODO: Get user preferences from the actual user.
+        user_preferences= f"Create a workout routine for the {curr_split} split for a 26 year old male who is 180 lbs and 5'10 looking to gain muscle mass and strength."
         llm_service = LLMService()
         generated_workout = await llm_service.generate_workout(
-            prompt=default_prompt, 
+            user_preferences=user_preferences, 
+            user_workout_history=user_workout_history,
             split=split,
             stretching_exercises=stretching_exercises,
             primary_exercises=primary_exercises

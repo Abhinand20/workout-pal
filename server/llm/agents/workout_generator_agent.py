@@ -1,18 +1,17 @@
 # server/services/agents/workout_generator_agent.py
 import json
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from datetime import datetime
 
 from models import Exercise, WorkoutRoutine, WorkoutSplit
-from llm.base import LLMClient
 from llm.agents.base_agent import BaseAgent
 from llm.gemini_client import GeminiClient
-from config.prompts import WORKOUT_AGENT_SYSTEM_PROMPT
+from config.prompts import WORKOUT_AGENT_SYSTEM_PROMPT, WORKOUT_AGENT_USER_PROMPT
+from data.schema import LoggedExercise
 
 class WorkoutGeneratorAgent(BaseAgent):
     """Agent for generating workout routines."""
     
-    # TODO: 1) Add prompts 2) Massage the exercise data to be more useful in the context 3) Define a correct response schema
     async def execute(self, **kwargs) -> WorkoutRoutine:
         """
         Generate a workout routine.
@@ -26,28 +25,31 @@ class WorkoutGeneratorAgent(BaseAgent):
         Returns:
             Generated WorkoutRoutine
         """
-        prompt = kwargs.get('prompt', 'Goal: Gain muscle mass and strength and lose fat')
+        user_preferences = kwargs.get('user_preferences', 'Goal: Gain muscle mass and strength and lose fat')
+        user_workout_history = kwargs.get('user_workout_history', [])
         split = kwargs.get('split')
         stretching_exercises = kwargs.get('stretching_exercises', [])
         primary_exercises = kwargs.get('primary_exercises', [])
         
         # Build the context for the model
         context = self._build_context(
-            prompt=prompt, 
+            user_preferences=user_preferences, 
+            user_workout_history=user_workout_history,
             split=split, 
             stretching_exercises=stretching_exercises,
-            primary_exercises=primary_exercises
+            primary_exercises=primary_exercises,
         )
         
         # Get the response from the LLM
         print(f"Context: {context}")
         response_text = await self.llm_client.generate_structured_content(context, response_schema=WorkoutRoutine, system_prompt=WORKOUT_AGENT_SYSTEM_PROMPT)
         
-        # Parse the response into a WorkoutRoutine
+        # # Parse the response into a WorkoutRoutine
         return self._parse_workout_response(response_text)
     
     def _build_context(self, 
-                     prompt: str, 
+                     user_preferences: str, 
+                     user_workout_history: List[LoggedExercise],
                      split: Optional[WorkoutSplit],
                      stretching_exercises: List[Exercise],
                      primary_exercises: List[Exercise]) -> str:
@@ -75,38 +77,33 @@ class WorkoutGeneratorAgent(BaseAgent):
         # We already specify the response schema for Gemini
         focus_groups = []
         if split and split.value == WorkoutSplit.PUSH:
-            focus_groups = ["Chest", "Shoulders", "Triceps"]
+            focus_groups = ["Chest", "Triceps"]
         elif split and split.value == WorkoutSplit.PULL:
             focus_groups = ["Back", "Biceps", "Forearms"]
-        context = f"""
-        Create a workout routine for the user based on the following information:
-        
-        Today's date: {datetime.now().strftime('%Y-%m-%d')}
-        Workout split: {split.value if split else 'Not specified'}
-        Workout focus groups: {", ".join(focus_groups) if focus_groups else 'Not specified'}
-        User preferences: {prompt}
-        
-        The data below is the relevant exercises from the exercises.json file. ONLY SELECT EXERCISES FROM THIS LIST AND USE THE EXERCISE IDS PROVIDED.
+        elif split and split.value == WorkoutSplit.LEGS:
+            focus_groups = ["Legs", "Shoulders"]
+        elif split and split.value == WorkoutSplit.FULL_BODY:
+            focus_groups = ["Full Body"]
+        else:
+            focus_groups = []
 
-        Available primary exercises for this split:
-        {primary_json}
+        # Process workout history to string
+        past_performance_data = json.dumps([{
+            "id": ex.exercise_id,
+            "name": ex.name,
+            "sets": ex.sets,
+        } for ex in (user_workout_history or [])])
         
-        Create a workout routine which can be finished in under 45 minutes with the following format:
-        1. A brief insight about the workout (1-2 sentences) providing an overview of the workout
-        3. A list of 4-5 primary exercises from the available options
+        rendered_context = WORKOUT_AGENT_USER_PROMPT.render(
+            date=datetime.now().strftime('%Y-%m-%d'),
+            split=split.value if split else 'Not specified',
+            focus_groups=focus_groups,
+            user_preferences=user_preferences,
+            primary_exercises=primary_json,
+            past_performance_data=past_performance_data
+        )
         
-        For each exercise, specify:
-        - Exercise ID (must match one from the available exercises)
-        - Exercise name
-        - Number of sets (typically 3-5)
-        - Rep range (e.g., "8-10" or "12")
-        - Target weight in lbs (a single positive integer)
-        - Rest period in seconds (typically 30-120)
-        - Tip (short and concise tip for the exercise that a personal trainer would give to help the user perform the exercise better)
-        - Focus groups (optional, can be null)
-        """
-        
-        return context
+        return rendered_context
     
     def _parse_workout_response(self, response_text) -> WorkoutRoutine:
         """Parse the LLM response into a WorkoutRoutine object."""

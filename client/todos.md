@@ -44,8 +44,14 @@
 - Deploy the frontend to Vercel
 
 
-### TODOs 06-03-2025:
+### TODOs 07-10-2025:
 
-[ ] Update backend logic to query historical workouts data for workout generation.
+[x] Update backend logic to query historical workouts data for workout generation.
+
+[ ] Lock down the app to only allow my user to use it.
+
 [ ] Deploy the app and start using it!!
+
 [ ] Add support for basic historical analytics.
+
+[ ] Add support for updating individual exercises in the workout.
