@@ -109,10 +109,13 @@ export default function WorkoutLoggerPage() {
       if (isPending) {
         return;
       }
-      if (!sessionData?.user.id) {
-        throw new Error("User ID is not set");
+      var userId = sessionData?.user.id;
+      if (!userId) {
+        // TODO: Remove this once we migrate off of sqlite.
+        userId = "123";
+        // throw new Error("User ID is not set");
       }
-      const activeWorkoutSession = await fetchActiveWorkoutSession(sessionData.user.id, id);
+      const activeWorkoutSession = await fetchActiveWorkoutSession(userId, id);
       if (!activeWorkoutSession) throw new Error("No active workout found");
       setActiveWorkout(activeWorkoutSession.activeWorkoutSession);
     }
