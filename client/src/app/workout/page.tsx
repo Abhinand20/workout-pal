@@ -94,7 +94,9 @@ function WorkoutPage() {
     try {
       var userId = sessionData?.user.id;
       if (!userId) {
-        throw new Error("User ID is not set");
+        // TODO: Remove this once we migrate off of sqlite.
+        userId = "123";
+        // throw new Error("User ID is not set");
       }
       const workout = await fetchTodaysWorkout({ split: splitToFetch, userId: userId });
       setInitialWorkoutData(workout);
