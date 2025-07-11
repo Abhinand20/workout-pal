@@ -58,4 +58,4 @@
 
 [ ] Vercel does not support sqlite. Need to migrate to a different database for auth. Currently, the app is relying on vercel's auth to authenticate users.
 
-[ ] Backend database is working but if the VM is restarted, the database is lost. Might work for MVP but need a hosted/persistent database for production.
+[ ] Backend database is working but if the VM is restarted, the database is lost. Might work for MVP but need a hosted/persistent database for production, move to a hosted postgres database (supabase? neon?) for a better experience.

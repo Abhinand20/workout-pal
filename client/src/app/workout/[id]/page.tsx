@@ -302,7 +302,11 @@ export default function WorkoutLoggerPage() {
 
 
     console.log("Cleaned logged data:", cleanedLoggedData);
-
+    var userId = sessionData?.user.id;
+    if (!userId) {
+      // TODO: Remove this once we migrate off of sqlite.
+      userId = "123";
+    }
     const payload: LogWorkoutRequest = {
       workoutRoutineId: activeWorkout.routine.id,
       loggedExercises: cleanedLoggedData,
@@ -311,7 +315,7 @@ export default function WorkoutLoggerPage() {
       totalDurationSeconds: (Date.now() - activeWorkout.startTime) / 1000,
       notes: '',
       split: activeWorkout.split,
-      userId: sessionData?.user.id,
+      userId: userId,
     };
     try {
       console.log("Sending workout log to server:", JSON.stringify(payload));
@@ -343,7 +347,7 @@ export default function WorkoutLoggerPage() {
       // TODO: Redirect to the finished workout page instead of landing page
       // Populate the finished workout page with the workout data and insights
       try {
-        await deleteActiveWorkoutSession(sessionData?.user.id, id);
+        await deleteActiveWorkoutSession(userId, id);
       } catch (err) {
         console.error("Error deleting active workout session:", err);
         toast.error("Error deleting active workout session.");
