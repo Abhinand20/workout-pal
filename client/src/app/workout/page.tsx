@@ -130,8 +130,12 @@ function WorkoutPage() {
 
   // --- Workout Control Handlers ---
   const handleStartWorkout = async (routineToStart: WorkoutRoutine) => {
-    if (!sessionData?.user.id) {
-      throw new Error("User ID is not set");
+    // TODO: Remove this once we migrate off of sqlite.
+    var userId = sessionData?.user.id;
+    if (!userId) {
+      // TODO: Remove this once we migrate off of sqlite.
+      userId = "123";
+      // throw new Error("User ID is not set");
     }
     const initialLoggedData: LoggedExercise[] = routineToStart.routine.map(exercise => ({
       exercise_id: exercise.id,
@@ -163,7 +167,7 @@ function WorkoutPage() {
     };
     setActiveWorkout(activeWorkout);
     try {
-      const activeSessionResponse = await addActiveWorkoutSession(sessionData.user.id, activeWorkout);
+      const activeSessionResponse = await addActiveWorkoutSession(userId, activeWorkout);
       const sessionId = activeSessionResponse.active_workout_session_id;
       console.log(`Workout started, sessionId: ${sessionId}`);
       router.push(`/workout/${sessionId}`);
