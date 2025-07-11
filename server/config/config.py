@@ -21,7 +21,6 @@ class ServerConfig(BaseModel):
 class DataConfig(BaseModel):
     """Data source configuration settings."""
     source_file: str = Field(default="data/exercises.json", description="Path to the data source file")
-    vector_store_path: str = Field(default="data/vector_store", description="Path to store the vector database")
 
 class Config(BaseModel):
     """Main configuration class that combines all config sections."""
@@ -64,8 +63,7 @@ class ConfigManager:
 
         # Load data config
         data_config = DataConfig(
-            source_file=os.getenv("DATA_SOURCE_FILE", "src/scraper/data.json"),
-            vector_store_path=os.getenv("VECTOR_STORE_PATH", "src/data/vector_store")
+            source_file=os.getenv("DATA_SOURCE_FILE", "data/exercises.json"),
         )
 
         self._config = Config(

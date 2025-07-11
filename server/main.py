@@ -53,7 +53,8 @@ from data.queries import create_workout_log
 app = FastAPI(title="Workout Pal API")
 
 origins = [
-    "http://localhost:3000",
+    "*",
+    # "http://localhost:3000",
     # You can add other origins here, e.g., your deployed frontend URL
     # "https://your-deployed-frontend.com",
 ]
