@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Union, TypeVar, Generic, Any
 from enum import Enum
+from config.config import ConfigManager
 from models import (
     WorkoutSplit,
     Exercise,
@@ -52,12 +53,9 @@ from data.queries import create_workout_log
 
 app = FastAPI(title="Workout Pal API")
 
-origins = [
-    "*",
-    # "http://localhost:3000",
-    # You can add other origins here, e.g., your deployed frontend URL
-    # "https://your-deployed-frontend.com",
-]
+configs = ConfigManager()
+
+origins = configs.get_server_config().cors_origins
 
 app.add_middleware(
     CORSMiddleware,
