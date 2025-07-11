@@ -98,7 +98,7 @@ export default function SignIn() {
                     router.push("/landing");
                   },
                   onError: (ctx) => {
-                    toast.error(ctx.error.message);
+                    toast.error("Invalid email or password");
                   },
                 },
                 );

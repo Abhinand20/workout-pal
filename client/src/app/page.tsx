@@ -24,7 +24,7 @@ export default function MarketingLanding() {
           every set and watch your progress sky-rocket.
         </p>
         <div className="flex flex-row justify-start mt-4">
-          {/* <Dialog>
+          <Dialog>
             <DialogTrigger asChild>
               <Button>Sign Up</Button>
             </DialogTrigger>
@@ -35,7 +35,7 @@ export default function MarketingLanding() {
               </DialogDescription>
               <SignUp />
             </DialogContent>
-          </Dialog> */}
+          </Dialog>
         </div>
       </div>
 
