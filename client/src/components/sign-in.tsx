@@ -47,12 +47,12 @@ export default function SignIn() {
             <div className="grid gap-2">
               <div className="flex items-center">
                 <Label htmlFor="password">Password</Label>
-                <Link
+                {/* <Link
                     href="#"
                     className="ml-auto inline-block text-sm underline"
                   >
                     Forgot your password?
-                  </Link>
+                  </Link> */}
               </div>
 
               <Input
@@ -118,7 +118,7 @@ export default function SignIn() {
               "justify-between flex-col"
             )}>
               
-				<Button
+				{/* <Button
                   variant="outline"
                   className={cn(
                     "w-full gap-2"
@@ -148,7 +148,7 @@ export default function SignIn() {
 				<path fill="#EB4335" d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0C79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251"></path>
 			</svg>
                   Sign in with Google
-                </Button>
+                </Button> */}
             </div>
         </div>
       </CardContent>
