@@ -98,6 +98,7 @@ def create_workout_log(db: Session, user_id: str, log_data: LogWorkoutRequest) -
             notes=log_data.notes
         )
         db.add(db_workout_log)
+        db.flush()
 
         # Create entries for each logged exercise
         for exercise_log_data in log_data.loggedExercises:

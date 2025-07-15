@@ -58,6 +58,7 @@ configs = ConfigManager()
 # origins = configs.get_server_config().cors_origins
 origins = [
     "https://workout-pal-one.vercel.app",
+    "http://localhost:3000",
 ]
 
 app.add_middleware(
