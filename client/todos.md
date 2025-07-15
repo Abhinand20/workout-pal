@@ -56,6 +56,8 @@
 
 [ ] Add support for updating individual exercises in the workout.
 
-[ ] Vercel does not support sqlite. Need to migrate to a different database for auth. Currently, the app is relying on vercel's auth to authenticate users.
+[ ] Turn the auth back to use `better-auth` since the db is migrated.
 
-[ ] Backend database is working but if the VM is restarted, the database is lost. Might work for MVP but need a hosted/persistent database for production, move to a hosted postgres database (supabase? neon?) for a better experience.
+[ ] Frequently update the workout state after set is completed to prevent losing state when the user disconnects.
+
+[x] Backend database is working but if the VM is restarted, the database is lost. Might work for MVP but need a hosted/persistent database for production, move to a hosted postgres database (supabase? neon?) for a better experience.
