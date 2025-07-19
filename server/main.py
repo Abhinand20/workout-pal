@@ -127,7 +127,7 @@ async def update_active_workout_session(request: UpdateActiveWorkoutSessionReque
     Updates the workout session for a user. If the user is not currently in a workout session, this will create a new one.
     """
     try:
-        print(f"Updating active workout session for user: {request.user_id}")
+        print(f"Updating active workout session for session: {request.active_workout_session_id}")
         active_workout_session_id = modify_active_workout_session(db, request.active_workout_session_id, request.activeWorkoutSession)
         if not active_workout_session_id:
             return ApiResponse[UpdateActiveWorkoutSessionData](
@@ -151,7 +151,7 @@ async def delete_active_workout_session(request: DeleteActiveWorkoutSessionReque
     Deletes the active workout session for a user.
     """
     try:
-        remove_active_workout_session(db, request.active_workout_session_id, request.user_id)
+        remove_active_workout_session(db, request.active_workout_session_id)
         return ApiResponse[None](
             success=True,
             data=None

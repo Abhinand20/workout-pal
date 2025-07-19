@@ -214,7 +214,7 @@ def modify_active_workout_session(
         print(f"Error upserting active workout session: {e}")
         raise e
     
-def remove_active_workout_session(db: Session, active_workout_session_id: str, user_id: str):
+def remove_active_workout_session(db: Session, active_workout_session_id: str):
     """
     Removes the active workout session for a user.
     """

@@ -143,4 +143,3 @@ class UpdateActiveWorkoutSessionData(BaseModel):
 
 class DeleteActiveWorkoutSessionRequest(BaseModel):
     active_workout_session_id: str
-    user_id: Optional[str] = None

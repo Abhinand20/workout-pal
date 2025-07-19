@@ -101,9 +101,36 @@ export function WorkoutLogging({
         <CardHeader className="bg-muted/50">
           <CardTitle>{currentExercise.name}</CardTitle>
           <CardDescription>
-            Target: {currentExercise.target_sets} sets x {currentExercise.target_reps}
-            {currentExercise.target_weight_lbs && ` @ ~${currentExercise.target_weight_lbs} lbs`}
-            {currentExercise.rest_period_seconds && ` | Rest: ${currentExercise.rest_period_seconds}s`}
+            <div className="flex flex-wrap gap-2 items-center text-sm text-muted-foreground">
+              <span>
+                <span className="font-semibold">Target:</span>{" "}
+                <span className="text-primary">{currentExercise.target_sets} sets</span>
+                {" x "}
+                <span className="text-primary">{currentExercise.target_reps} reps</span>
+              </span>
+              {currentExercise.target_weight_lbs && (
+                <span>
+                  <span className="mx-1 text-gray-400">|</span>
+                  <span className="font-semibold">Weight:</span>{" "}
+                  <span className="text-primary">~{currentExercise.target_weight_lbs} lbs</span>
+                </span>
+              )}
+              {currentExercise.rest_period_seconds && (
+                <span>
+                  <span className="mx-1 text-gray-400">|</span>
+                  <span className="font-semibold">Rest:</span>{" "}
+                  <span className="text-primary">{currentExercise.rest_period_seconds}s</span>
+                </span>
+              )}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {currentExercise.tip && (
+                <span>
+                  <span className="text-primary">Tip:</span>{" "}
+                  <span className="font-semibold italic">{currentExercise.tip}</span>
+                </span>
+              )}
+            </div>
           </CardDescription>
         </CardHeader>
 

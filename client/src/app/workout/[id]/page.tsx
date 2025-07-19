@@ -17,7 +17,7 @@ import {
   LoggedSet,
 } from "@/types";
 import { WorkoutLogging } from "@/components/log-workout";
-import { ApiResponse, GetActiveWorkoutSessionData, LogWorkoutData, LogWorkoutRequest } from "@/types/api";
+import { ApiResponse, GetActiveWorkoutSessionData, LogWorkoutData, LogWorkoutRequest, UpdateActiveWorkoutSessionData } from "@/types/api";
 import { useSession } from "@/lib/auth-client";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -54,16 +54,45 @@ async function fetchActiveWorkoutSession(
   throw new Error('Unexpected API response structure.');
 }
 
+async function updateActiveWorkoutSession(
+  activeWorkoutSessionId: string,
+  activeWorkoutSession: ActiveWorkoutState,
+): Promise<void> {
+  if (!activeWorkoutSessionId) {
+    throw new Error("Active workout session ID is not set");
+  }
+  const url = new URL(`${API_URL}/api/workout/active`);
+  const response = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ active_workout_session_id: activeWorkoutSessionId, activeWorkoutSession: activeWorkoutSession }),
+  });
+  if (!response.ok) {
+    const errorData: ApiResponse<UpdateActiveWorkoutSessionData> = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+    console.error('API Error:', errorData);
+    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+  }
+  const result: ApiResponse<UpdateActiveWorkoutSessionData> = await response.json();
+  if (result.success) {
+    return;
+  } else if (result.error) {
+    console.error('API returned an error:', result.error.message);
+    throw new Error(result.error.message);
+  }
+  console.error('Unexpected API response structure:', result);
+  throw new Error('Unexpected API response structure.');
+}
+
 async function deleteActiveWorkoutSession(
-  userId: string | undefined,
   activeWorkoutSessionId: string,
 ): Promise<void> {
-  if (!userId || !activeWorkoutSessionId) {
-    throw new Error("User ID or active workout session ID is not set");
+  if (!activeWorkoutSessionId) {
+    throw new Error("Active workout session ID is not set");
   }
   const url = new URL(`${API_URL}/api/workout/active`);
   url.searchParams.set("active_workout_session_id", activeWorkoutSessionId);
-  url.searchParams.set("user_id", userId);
   const response = await fetch(url.toString(), {
     method: 'DELETE',
     headers: {
@@ -115,9 +144,9 @@ export default function WorkoutLoggerPage() {
         userId = "123";
         // throw new Error("User ID is not set");
       }
-      const activeWorkoutSession = await fetchActiveWorkoutSession(userId, id);
-      if (!activeWorkoutSession) throw new Error("No active workout found");
-      setActiveWorkout(activeWorkoutSession.activeWorkoutSession);
+      const workoutSessionResp = await fetchActiveWorkoutSession(userId, id);
+      if (!workoutSessionResp.activeWorkoutSession) throw new Error("No active workout found");
+      setActiveWorkout(workoutSessionResp.activeWorkoutSession);
     }
 
     try {
@@ -258,9 +287,14 @@ export default function WorkoutLoggerPage() {
             currentExercise.elapsedTime_ms = 0; // Or handle as error/undefined
         }
       }
+      // Update the backend once the set is finished.
+      const newWorkoutState = { ...prevActiveWorkout, loggedData: newLoggedData };
+      if (action === 'finish') {
+        updateActiveWorkoutSession(id, newWorkoutState);
+      }
       setActiveSetInfo(newActiveSetInfo);
       console.log("Active set info updated:", newActiveSetInfo);
-      return { ...prevActiveWorkout, loggedData: newLoggedData };
+      return newWorkoutState;
     });
   }, [activeSetInfo]);
 
@@ -276,7 +310,7 @@ export default function WorkoutLoggerPage() {
 
   const handleCancelWorkout = useCallback(async () => {
     try {
-      await deleteActiveWorkoutSession(sessionData?.user.id, id);
+      await deleteActiveWorkoutSession(id);
     } catch (err) {
       console.error("Error deleting active workout session:", err);
       toast.error("Error deleting active workout session.");
@@ -347,7 +381,7 @@ export default function WorkoutLoggerPage() {
       // TODO: Redirect to the finished workout page instead of landing page
       // Populate the finished workout page with the workout data and insights
       try {
-        await deleteActiveWorkoutSession(userId, id);
+        await deleteActiveWorkoutSession(id);
       } catch (err) {
         console.error("Error deleting active workout session:", err);
         toast.error("Error deleting active workout session.");
