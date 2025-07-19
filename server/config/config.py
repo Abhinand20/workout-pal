@@ -7,7 +7,7 @@ import os
 class GeminiConfig(BaseModel):
     """Gemini configuration settings."""
     api_key: str = Field(..., description="Gemini API key")
-    model: str = Field(default="gemini-2.5-flash-preview-04-17", description="Gemini model to use")
+    model: str = Field(default="gemini-2.5-flash", description="Gemini model to use")
     temperature: Optional[float] = Field(default=None, description="Model temperature")
     max_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate")
 
@@ -48,7 +48,7 @@ class ConfigManager:
 
         gemini_config = GeminiConfig(
             api_key=os.getenv("GEMINI_API_KEY", ""),
-            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-preview-04-17"),
+            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
             temperature=os.getenv("GEMINI_TEMPERATURE", None),
             max_tokens=os.getenv("GEMINI_MAX_TOKENS", None)
         )
