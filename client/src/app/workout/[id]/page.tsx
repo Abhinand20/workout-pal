@@ -19,6 +19,7 @@ import {
 import { WorkoutLogging } from "@/components/log-workout";
 import { ApiResponse, GetActiveWorkoutSessionData, LogWorkoutData, LogWorkoutRequest, UpdateActiveWorkoutSessionData } from "@/types/api";
 import { useSession } from "@/lib/auth-client";
+import { FinishedWorkout } from "@/components/finished-workout";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -128,6 +129,14 @@ export default function WorkoutLoggerPage() {
   const [activeSetInfo, setActiveSetInfo] = useState<{
     exerciseIndex: number;
     setIndex: number;
+  } | null>(null);
+  const [workoutFinished, setWorkoutFinished] = useState(false);
+  const [finishedWorkoutData, setFinishedWorkoutData] = useState<{
+    loggedExercises: LoggedExercise[];
+    startTime: number;
+    endTime: number;
+    totalDurationSeconds: number;
+    split: WorkoutSplit;
   } | null>(null);
 
   // ─────────────────────────────────────
@@ -334,23 +343,27 @@ export default function WorkoutLoggerPage() {
         status: 'completed',
     }))
 
-
     console.log("Cleaned logged data:", cleanedLoggedData);
     var userId = sessionData?.user.id;
     if (!userId) {
       // TODO: Remove this once we migrate off of sqlite.
       userId = "123";
     }
+    
+    const endTime = Date.now();
+    const totalDurationSeconds = (endTime - activeWorkout.startTime) / 1000;
+    
     const payload: LogWorkoutRequest = {
       workoutRoutineId: activeWorkout.routine.id,
       loggedExercises: cleanedLoggedData,
       startTime: activeWorkout.startTime,
-      endTime: Date.now(),
-      totalDurationSeconds: (Date.now() - activeWorkout.startTime) / 1000,
+      endTime: endTime,
+      totalDurationSeconds: totalDurationSeconds,
       notes: '',
       split: activeWorkout.split,
       userId: userId,
     };
+    
     try {
       console.log("Sending workout log to server:", JSON.stringify(payload));
       const response = await fetch(`${API_URL}/api/workout/log`, {
@@ -369,7 +382,26 @@ export default function WorkoutLoggerPage() {
       const result: ApiResponse<LogWorkoutData> = await response.json();
       if (result.success && result.data) {
         toast.success("Workout saved successfully.");
+        
+        // Set finished workout data and show finished workout component
+        setFinishedWorkoutData({
+          loggedExercises: cleanedLoggedData,
+          startTime: activeWorkout.startTime,
+          endTime: endTime,
+          totalDurationSeconds: totalDurationSeconds,
+          split: activeWorkout.split,
+        });
+        setWorkoutFinished(true);
         setActiveWorkout(null);
+        
+        // Delete the active workout session
+        try {
+          await deleteActiveWorkoutSession(id);
+        } catch (err) {
+          console.error("Error deleting active workout session:", err);
+          toast.error("Error deleting active workout session.");
+        }
+        
       } else if (result.error) {
         console.error('API returned an error:', result.error.message);
         throw new Error(result.error.message);
@@ -377,18 +409,6 @@ export default function WorkoutLoggerPage() {
         console.error('Unexpected API response structure:', result);
         throw new Error('Unexpected API response structure.');
       }
-      // Add a delay before pushing to landing
-      // TODO: Redirect to the finished workout page instead of landing page
-      // Populate the finished workout page with the workout data and insights
-      try {
-        await deleteActiveWorkoutSession(id);
-      } catch (err) {
-        console.error("Error deleting active workout session:", err);
-        toast.error("Error deleting active workout session.");
-      }
-      setTimeout(() => {
-        router.push('/landing');
-      }, 2000);
 
     } catch (err) {
       console.error("Error finishing workout:", err);
@@ -398,11 +418,30 @@ export default function WorkoutLoggerPage() {
     } finally {
       setIsFinishing(false);
     }
-  }, [activeWorkout, router, sessionData?.user.id]);
+  }, [activeWorkout, router, sessionData?.user.id, id]);
+
+  const handleReturnToLanding = useCallback(() => {
+    router.push('/landing');
+  }, [router]);
 
   // ─────────────────────────────────────
   // render
   // ─────────────────────────────────────
+  
+  // Show finished workout component if workout is completed
+  if (workoutFinished && finishedWorkoutData) {
+    return (
+      <FinishedWorkout
+        loggedExercises={finishedWorkoutData.loggedExercises}
+        startTime={finishedWorkoutData.startTime}
+        endTime={finishedWorkoutData.endTime}
+        totalDurationSeconds={finishedWorkoutData.totalDurationSeconds}
+        split={finishedWorkoutData.split}
+        onReturnToLanding={handleReturnToLanding}
+      />
+    );
+  }
+
   if (!activeWorkout) {
     return null; // splash screen already handled in useEffect
   }
