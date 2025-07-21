@@ -20,6 +20,7 @@ import { WorkoutLogging } from "@/components/log-workout";
 import { ApiResponse, GetActiveWorkoutSessionData, LogWorkoutData, LogWorkoutRequest, UpdateActiveWorkoutSessionData } from "@/types/api";
 import { useSession } from "@/lib/auth-client";
 import { FinishedWorkout } from "@/components/finished-workout";
+import { WorkoutSplit } from "@/types/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
