@@ -17,7 +17,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
     """Initializes the database tables based on the schema."""
-    print("Initializing database at: ", DATABASE_URL)
     # Creates all tables defined in Base.metadata
     Base.metadata.create_all(bind=engine)
     # Load data into the database

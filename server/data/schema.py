@@ -1,6 +1,7 @@
 from enum import Enum
 import uuid
-from sqlalchemy import BigInteger, Column, String, Text, JSON, create_engine, Date, Boolean
+from sqlalchemy import BigInteger, Column, String, Text, create_engine, Date, Boolean
+from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.schema import ForeignKey
 

@@ -6,31 +6,43 @@ from sqlalchemy import create_engine, desc, update
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import cast
 from data.schema import Exercise, PrimaryMuscle, Level, Category, Force, Mechanic, WorkoutLog, LoggedExercise as LoggedExerciseDB, ActiveWorkoutSessions, UserWorkoutRoutine    
 from models import LogWorkoutRequest, WorkoutRoutine, WorkoutSplit, ActiveWorkoutSession
 from typing import Optional, List
 
 class ExerciseFilter:
     def __init__(self,
-                 primary_muscle: PrimaryMuscle = None, 
-                 level: Level = None,
-                 category: Category = None,
-                 force: Force = None,
-                 mechanic: Mechanic = None):
+                 primary_muscle: PrimaryMuscle | None = None, 
+                 level: Level | None = None,
+                 category: Category | None = None,
+                 force: Force | None = None,
+                 mechanic: Mechanic | None = None):
         self.primary_muscle = primary_muscle
         self.level = level
         self.category = category
         self.force = force
         self.mechanic = mechanic
-        
+
     def __str__(self):
-        return f"ExerciseFilter(primary_muscle={self.primary_muscle.value}, level={self.level.value}, category={self.category.value}, force={self.force.value}, mechanic={self.mechanic.value})"
+        return (
+            f"ExerciseFilter("
+            f"primary_muscle={self.primary_muscle.value if self.primary_muscle else None}, "
+            f"level={self.level.value if self.level else None}, "
+            f"category={self.category.value if self.category else None}, "
+            f"force={self.force.value if self.force else None}, "
+            f"mechanic={self.mechanic.value if self.mechanic else None})"
+        )
 
 def search_exercises(filter: ExerciseFilter, session: Session) -> list[Exercise]:
     query = session.query(Exercise)
 
     if filter.primary_muscle:
-        query = query.filter(Exercise.primary_muscles.contains([filter.primary_muscle.value]))
+        # query = query.filter(Exercise.primary_muscles.contains([filter.primary_muscle.value]))
+        query = query.filter(
+            cast(Exercise.primary_muscles, JSONB).contains([filter.primary_muscle.value])
+        )
     if filter.level:
         query = query.filter(Exercise.level == filter.level.value)
     if filter.category:
@@ -40,6 +52,7 @@ def search_exercises(filter: ExerciseFilter, session: Session) -> list[Exercise]
     if filter.mechanic:
         query = query.filter(Exercise.mechanic == filter.mechanic.value)
     
+    print(f"Query: {query}")
     results = query.all()
     return results
 
