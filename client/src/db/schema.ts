@@ -5,8 +5,8 @@ export const workoutLogsTable = pgTable('workout_logs', {
   workout_routine_id: text('workout_routine_id').notNull(),
   user_id: text('user_id').notNull(),
   split: text('split').notNull(),
-  start_time: timestamp('start_time').notNull(),
-  end_time: timestamp('end_time').notNull(),
+  start_time: integer('start_time').notNull(),
+  end_time: integer('end_time').notNull(),
   total_duration_seconds: integer('total_duration_seconds').notNull(),
   notes: text('notes'),
 });
@@ -17,8 +17,8 @@ export const loggedExercisesTable = pgTable('logged_exercises', {
   exercise_id: text('exercise_id').notNull(),
   name: text('name').notNull(),
   sets: json('sets').notNull(),
-  start_time: timestamp('start_time').notNull(),
-  end_time: timestamp('end_time').notNull(),
+  start_time: integer('start_time').notNull(),
+  elapsed_time_ms: integer('elapsed_time_ms').notNull(),
   status: text('status').notNull(),
   active_work_time_ms: integer('active_work_time_ms').notNull(),
 });

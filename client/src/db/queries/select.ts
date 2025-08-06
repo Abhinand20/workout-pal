@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, getTableColumns } from 'drizzle-orm';
 import { db } from '../index';
 import { SelectWorkoutLog, SelectLoggedExercise, workoutLogsTable, loggedExercisesTable } from '../schema';
 
@@ -14,10 +14,10 @@ export async function getAllWorkoutLogs(userId?: string): Promise<
   if (userId) {
     return db.select().from(workoutLogsTable)
       .where(eq(workoutLogsTable.user_id, userId))
-      .orderBy(desc(workoutLogsTable.start_time));
+      .orderBy(desc(workoutLogsTable.start_time), desc(workoutLogsTable.id));
   }
   return db.select().from(workoutLogsTable)
-    .orderBy(desc(workoutLogsTable.start_time));
+    .orderBy(desc(workoutLogsTable.start_time), desc(workoutLogsTable.id));
 }
 
 export async function getLoggedExercises(
@@ -25,7 +25,9 @@ export async function getLoggedExercises(
 ): Promise<
   Array<SelectLoggedExercise>
 > {
-  return db.select().from(loggedExercisesTable).where(eq(loggedExercisesTable.workout_log_id, workoutLogId.toString()));
+  return db.select({
+    ...getTableColumns(loggedExercisesTable),
+  }).from(loggedExercisesTable).where(eq(loggedExercisesTable.workout_log_id, workoutLogId.toString()));
 }
 
 export async function getAllLoggedExercises(userId?: string): Promise<
@@ -34,21 +36,15 @@ export async function getAllLoggedExercises(userId?: string): Promise<
   if (userId) {
     // Join with workout_logs to filter by user_id
     return db.select({
-      id: loggedExercisesTable.id,
-      workout_log_id: loggedExercisesTable.workout_log_id,
-      exercise_id: loggedExercisesTable.exercise_id,
-      name: loggedExercisesTable.name,
-      sets: loggedExercisesTable.sets,
-      start_time: loggedExercisesTable.start_time,
-      end_time: loggedExercisesTable.end_time,
-      status: loggedExercisesTable.status,
-      active_work_time_ms: loggedExercisesTable.active_work_time_ms,
+      ...getTableColumns(loggedExercisesTable),
     })
     .from(loggedExercisesTable)
     .innerJoin(workoutLogsTable, eq(loggedExercisesTable.workout_log_id, workoutLogsTable.id.toString()))
     .where(eq(workoutLogsTable.user_id, userId))
     .orderBy(desc(loggedExercisesTable.start_time));
   }
-  return db.select().from(loggedExercisesTable)
+  return db.select({
+    ...getTableColumns(loggedExercisesTable),
+  }).from(loggedExercisesTable)
     .orderBy(desc(loggedExercisesTable.start_time));
 }

@@ -1,266 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, CartesianGrid, PieChart, Pie, Cell, ComposedChart, Area, AreaChart, Tooltip, Legend } from 'recharts';
 import { Calendar, Trophy, Target, TrendingUp, Dumbbell, Clock, Activity, BarChart3, User, Filter } from 'lucide-react';
+import { SelectWorkoutLog, SelectLoggedExercise } from '@/db/schema';
+import { getWorkoutLogsAction, getLoggedExercisesAction } from '@/app/actions/workout-actions';
 
-// Expanded mock data with more splits
-const mockWorkoutLogs = [
-  {
-    id: "log_1_1704067200000",
-    workout_routine_id: "routine_1",
-    user_id: "user_123",
-    split: "Push",
-    start_time: 1704067200000,
-    end_time: 1704070800000,
-    total_duration_seconds: 3600,
-    notes: "Great session, hit new PR on bench press"
-  },
-  {
-    id: "log_2_1703980800000", 
-    workout_routine_id: "routine_2",
-    user_id: "user_123",
-    split: "Pull",
-    start_time: 1703980800000,
-    end_time: 1703984400000,
-    total_duration_seconds: 3300,
-    notes: "Focused on form today"
-  },
-  {
-    id: "log_3_1703808000000",
-    workout_routine_id: "routine_3", 
-    user_id: "user_123",
-    split: "Legs",
-    start_time: 1703808000000,
-    end_time: 1703811600000,
-    total_duration_seconds: 3600,
-    notes: "Legs are on fire!"
-  },
-  {
-    id: "log_4_1703721600000",
-    workout_routine_id: "routine_1",
-    user_id: "user_123", 
-    split: "Push",
-    start_time: 1703721600000,
-    end_time: 1703725200000,
-    total_duration_seconds: 3600,
-    notes: "Solid workout"
-  },
-  {
-    id: "log_5_1703548800000",
-    workout_routine_id: "routine_2",
-    user_id: "user_123",
-    split: "Pull", 
-    start_time: 1703548800000,
-    end_time: 1703552400000,
-    total_duration_seconds: 3300,
-    notes: "Back and biceps focused"
-  },
-  {
-    id: "log_6_1703462400000",
-    workout_routine_id: "routine_4",
-    user_id: "user_123",
-    split: "Abs",
-    start_time: 1703462400000,
-    end_time: 1703464200000,
-    total_duration_seconds: 1800,
-    notes: "Core blast session"
-  },
-  {
-    id: "log_7_1703376000000",
-    workout_routine_id: "routine_3",
-    user_id: "user_123",
-    split: "Legs",
-    start_time: 1703376000000,
-    end_time: 1703379600000,
-    total_duration_seconds: 3600,
-    notes: "Squat day"
-  },
-  {
-    id: "log_8_1703289600000",
-    workout_routine_id: "routine_5",
-    user_id: "user_123",
-    split: "Upper",
-    start_time: 1703289600000,
-    end_time: 1703293200000,
-    total_duration_seconds: 3600,
-    notes: "Upper body focused"
-  }
-];
+// Type for processed workout logs with timestamps converted to numbers
+type ProcessedWorkoutLog = SelectWorkoutLog;
 
-// Expanded mock logged exercises with different muscle groups
-const mockLoggedExercises = [
-  // Push Day (most recent)
-  {
-    id: "ex_1",
-    workout_log_id: "log_1_1704067200000",
-    exercise_id: "bench_press",
-    name: "Bench Press",
-    muscle_group: "Chest",
-    force: "Push",
-    mechanic: "Compound",
-    sets: [
-      { set_number: 1, weight_kg: 80, reps: 8, rpe: 7, elapsedTime_ms: 30000, status: "completed" },
-      { set_number: 2, weight_kg: 85, reps: 6, rpe: 8, elapsedTime_ms: 32000, status: "completed" },
-      { set_number: 3, weight_kg: 90, reps: 4, rpe: 9, elapsedTime_ms: 35000, status: "completed" },
-    ],
-    start_time: 1704067200000,
-    elapsed_time_ms: 600000,
-    status: "completed",
-    active_work_time_ms: 97000
-  },
-  {
-    id: "ex_2", 
-    workout_log_id: "log_1_1704067200000",
-    exercise_id: "shoulder_press",
-    name: "Shoulder Press",
-    muscle_group: "Shoulders",
-    force: "Push",
-    mechanic: "Compound",
-    sets: [
-      { set_number: 1, weight_kg: 30, reps: 12, rpe: 6, elapsedTime_ms: 25000, status: "completed" },
-      { set_number: 2, weight_kg: 32.5, reps: 10, rpe: 7, elapsedTime_ms: 27000, status: "completed" },
-      { set_number: 3, weight_kg: 35, reps: 8, rpe: 8, elapsedTime_ms: 30000, status: "completed" },
-    ],
-    start_time: 1704067800000,
-    elapsed_time_ms: 480000,
-    status: "completed", 
-    active_work_time_ms: 82000
-  },
-  {
-    id: "ex_3a",
-    workout_log_id: "log_1_1704067200000",
-    exercise_id: "tricep_dips",
-    name: "Tricep Dips",
-    muscle_group: "Arms",
-    force: "Push",
-    mechanic: "Compound",
-    sets: [
-      { set_number: 1, weight_kg: 20, reps: 15, rpe: 6, elapsedTime_ms: 25000, status: "completed" },
-      { set_number: 2, weight_kg: 25, reps: 12, rpe: 7, elapsedTime_ms: 27000, status: "completed" },
-      { set_number: 3, weight_kg: 30, reps: 10, rpe: 8, elapsedTime_ms: 30000, status: "completed" },
-    ],
-    start_time: 1704068400000,
-    elapsed_time_ms: 360000,
-    status: "completed", 
-    active_work_time_ms: 82000
-  },
-  // Pull Day
-  {
-    id: "ex_3",
-    workout_log_id: "log_2_1703980800000",
-    exercise_id: "deadlift",
-    name: "Deadlift",
-    muscle_group: "Back",
-    force: "Pull",
-    mechanic: "Compound",
-    sets: [
-      { set_number: 1, weight_kg: 120, reps: 5, rpe: 8, elapsedTime_ms: 40000, status: "completed" },
-      { set_number: 2, weight_kg: 125, reps: 4, rpe: 9, elapsedTime_ms: 42000, status: "completed" },
-      { set_number: 3, weight_kg: 130, reps: 3, rpe: 9.5, elapsedTime_ms: 45000, status: "completed" },
-    ],
-    start_time: 1703980800000,
-    elapsed_time_ms: 720000,
-    status: "completed",
-    active_work_time_ms: 127000
-  },
-  {
-    id: "ex_4",
-    workout_log_id: "log_2_1703980800000",
-    exercise_id: "pull_ups",
-    name: "Pull-ups",
-    muscle_group: "Back",
-    force: "Pull",
-    mechanic: "Compound",
-    sets: [
-      { set_number: 1, weight_kg: 0, reps: 12, rpe: 7, elapsedTime_ms: 30000, status: "completed" },
-      { set_number: 2, weight_kg: 5, reps: 10, rpe: 8, elapsedTime_ms: 32000, status: "completed" },
-      { set_number: 3, weight_kg: 10, reps: 8, rpe: 9, elapsedTime_ms: 35000, status: "completed" },
-    ],
-    start_time: 1703981400000,
-    elapsed_time_ms: 480000,
-    status: "completed",
-    active_work_time_ms: 97000
-  },
-  {
-    id: "ex_5",
-    workout_log_id: "log_2_1703980800000",
-    exercise_id: "bicep_curls",
-    name: "Bicep Curls",
-    muscle_group: "Arms",
-    force: "Pull",
-    mechanic: "Isolation",
-    sets: [
-      { set_number: 1, weight_kg: 15, reps: 15, rpe: 6, elapsedTime_ms: 25000, status: "completed" },
-      { set_number: 2, weight_kg: 17.5, reps: 12, rpe: 7, elapsedTime_ms: 27000, status: "completed" },
-      { set_number: 3, weight_kg: 20, reps: 10, rpe: 8, elapsedTime_ms: 30000, status: "completed" },
-    ],
-    start_time: 1703982000000,
-    elapsed_time_ms: 360000,
-    status: "completed",
-    active_work_time_ms: 82000
-  },
-  // Legs Day
-  {
-    id: "ex_6",
-    workout_log_id: "log_3_1703808000000",
-    exercise_id: "squats",
-    name: "Barbell Squats",
-    muscle_group: "Legs",
-    force: "Push",
-    mechanic: "Compound",
-    sets: [
-      { set_number: 1, weight_kg: 100, reps: 8, rpe: 7, elapsedTime_ms: 35000, status: "completed" },
-      { set_number: 2, weight_kg: 105, reps: 6, rpe: 8, elapsedTime_ms: 37000, status: "completed" },
-      { set_number: 3, weight_kg: 110, reps: 5, rpe: 9, elapsedTime_ms: 40000, status: "completed" },
-    ],
-    start_time: 1703808000000,
-    elapsed_time_ms: 600000,
-    status: "completed",
-    active_work_time_ms: 112000
-  },
-  {
-    id: "ex_7",
-    workout_log_id: "log_3_1703808000000",
-    exercise_id: "leg_press",
-    name: "Leg Press",
-    muscle_group: "Legs",
-    force: "Push",
-    mechanic: "Compound",
-    sets: [
-      { set_number: 1, weight_kg: 200, reps: 15, rpe: 6, elapsedTime_ms: 30000, status: "completed" },
-      { set_number: 2, weight_kg: 220, reps: 12, rpe: 7, elapsedTime_ms: 32000, status: "completed" },
-      { set_number: 3, weight_kg: 240, reps: 10, rpe: 8, elapsedTime_ms: 35000, status: "completed" },
-    ],
-    start_time: 1703808600000,
-    elapsed_time_ms: 480000,
-    status: "completed",
-    active_work_time_ms: 97000
-  },
-  // Abs Day
-  {
-    id: "ex_8",
-    workout_log_id: "log_6_1703462400000",
-    exercise_id: "planks",
-    name: "Planks",
-    muscle_group: "Abs",
-    force: "Static",
-    mechanic: "Isolation",
-    sets: [
-      { set_number: 1, weight_kg: 0, reps: 60, rpe: 7, elapsedTime_ms: 60000, status: "completed" },
-      { set_number: 2, weight_kg: 0, reps: 45, rpe: 8, elapsedTime_ms: 45000, status: "completed" },
-      { set_number: 3, weight_kg: 0, reps: 30, rpe: 9, elapsedTime_ms: 30000, status: "completed" },
-    ],
-    start_time: 1703462400000,
-    elapsed_time_ms: 300000,
-    status: "completed",
-    active_work_time_ms: 135000
-  }
-];
+// Type for processed logged exercises with additional fields
+type ProcessedLoggedExercise = Omit<SelectLoggedExercise, 'start_time' | 'sets'> & {
+  start_time: number;
+  muscle_group?: string;
+  force?: string;
+  mechanic?: string;
+  sets: Array<{
+    set_number: number;
+    weight_lbs: number;
+    reps: number;
+    rpe: number;
+    elapsedTime_ms: number;
+    status: string;
+    end_time: number;
+  }>;
+};
 
-// Mock data for exercise-specific view
+// Mock data for exercise-specific view (keep this for now until we have more exercise data)
 const benchPressHistory = [
   { date: "2024-01-01", estimated1RM: 102, maxWeight: 90, totalVolume: 1920, session: "Push Day" },
   { date: "2023-12-28", estimated1RM: 100, maxWeight: 87.5, totalVolume: 1800, session: "Push Day" },
@@ -270,62 +38,72 @@ const benchPressHistory = [
 ];
 
 const benchPressPRs = [
-  { repRange: "1 Rep", weight: "90kg", date: "2024-01-01" },
-  { repRange: "3 Reps", weight: "85kg", date: "2023-12-28" },
-  { repRange: "5 Reps", weight: "80kg", date: "2023-12-25" },
-  { repRange: "8 Reps", weight: "75kg", date: "2023-12-21" },
-  { repRange: "10 Reps", weight: "70kg", date: "2023-12-18" },
+  { repRange: "1 Rep", weight: "90lbs", date: "2024-01-01" },
+  { repRange: "3 Reps", weight: "85lbs", date: "2023-12-28" },
+  { repRange: "5 Reps", weight: "80lbs", date: "2023-12-25" },
+  { repRange: "8 Reps", weight: "75lbs", date: "2023-12-21" },
+  { repRange: "10 Reps", weight: "70lbs", date: "2023-12-18" },
 ];
 
+// Helper function to infer muscle group, force, and mechanic from exercise name
+const inferExerciseMetadata = (exerciseName: string) => {
+  const name = exerciseName.toLowerCase();
+  
+  // Muscle group inference
+  let muscle_group = 'Other';
+  if (name.includes('bench') || name.includes('chest') || name.includes('pec')) {
+    muscle_group = 'Chest';
+  } else if (name.includes('squat') || name.includes('leg') || name.includes('quad') || name.includes('hamstring')) {
+    muscle_group = 'Legs';
+  } else if (name.includes('deadlift') || name.includes('row') || name.includes('pull') || name.includes('lat')) {
+    muscle_group = 'Back';
+  } else if (name.includes('shoulder') || name.includes('press') && !name.includes('bench')) {
+    muscle_group = 'Shoulders';
+  } else if (name.includes('curl') || name.includes('tricep') || name.includes('bicep') || name.includes('arm')) {
+    muscle_group = 'Arms';
+  } else if (name.includes('plank') || name.includes('abs') || name.includes('core')) {
+    muscle_group = 'Abs';
+  }
+
+  // Force inference
+  let force = 'Push';
+  if (name.includes('pull') || name.includes('row') || name.includes('curl') || name.includes('deadlift')) {
+    force = 'Pull';
+  } else if (name.includes('plank') || name.includes('hold')) {
+    force = 'Static';
+  }
+
+  // Mechanic inference
+  let mechanic = 'Compound';
+  if (name.includes('curl') || name.includes('extension') || name.includes('raise') || name.includes('fly')) {
+    mechanic = 'Isolation';
+  }
+
+  return { muscle_group, force, mechanic };
+};
+
 // Calculate total volume for a workout
-const calculateWorkoutVolume = (workoutLogId: string) => {
-  return mockLoggedExercises
-    .filter(ex => ex.workout_log_id === workoutLogId)
+const calculateWorkoutVolume = (workoutLogId: string, loggedExercises: ProcessedLoggedExercise[]) => {
+  return loggedExercises
+    .filter(ex => ex.workout_log_id.toString() === workoutLogId)
     .reduce((total, exercise) => {
-      const exerciseVolume = exercise.sets.reduce((sum, set) => sum + (set.weight_kg * set.reps), 0);
+      const exerciseVolume = exercise.sets.reduce((sum, set) => sum + (set.weight_lbs* set.reps), 0);
       return total + exerciseVolume;
     }, 0);
 };
 
 // Filter functions for analytics
-const filterDataBySplit = (split: string) => {
-  if (split === 'All') return mockWorkoutLogs;
-  return mockWorkoutLogs.filter(log => log.split === split);
+const filterDataBySplit = (split: string, workoutLogs: ProcessedWorkoutLog[]) => {
+  if (split === 'All') return workoutLogs;
+  return workoutLogs.filter(log => log.split === split);
 };
 
-const filterExercisesBySplit = (split: string) => {
-  if (split === 'All') return mockLoggedExercises;
-  const filteredLogs = filterDataBySplit(split);
-  const logIds = filteredLogs.map(log => log.id);
-  return mockLoggedExercises.filter(ex => logIds.includes(ex.workout_log_id));
+const filterExercisesBySplit = (split: string, workoutLogs: ProcessedWorkoutLog[], loggedExercises: ProcessedLoggedExercise[]) => {
+  if (split === 'All') return loggedExercises;
+  const filteredLogs = filterDataBySplit(split, workoutLogs);
+  const logIds = filteredLogs.map(log => log.id.toString());
+  return loggedExercises.filter(ex => logIds.includes(ex.workout_log_id));
 };
-
-// Get last workout
-const lastWorkout = mockWorkoutLogs[0];
-const lastWorkoutVolume = calculateWorkoutVolume(lastWorkout.id);
-const lastWorkoutDate = new Date(lastWorkout.start_time);
-const lastWorkoutDuration = Math.round(lastWorkout.total_duration_seconds / 60);
-
-// This week's activity data
-const thisWeekData = mockWorkoutLogs
-  .map(log => ({
-    day: new Date(log.start_time).toLocaleDateString('en-US', { weekday: 'short' }),
-    volume: calculateWorkoutVolume(log.id),
-    split: log.split,
-    date: new Date(log.start_time).getDate()
-  }))
-  .reverse();
-
-// Overall stats
-const totalWorkouts = mockWorkoutLogs.length;
-const allTimeVolume = mockWorkoutLogs.reduce((total, log) => total + calculateWorkoutVolume(log.id), 0);
-const workoutStreak = 3;
-
-// Personal records from last workout
-const lastWorkoutPRs = [
-  { exercise: "Bench Press", type: "Weight PR", value: "90kg" },
-  { exercise: "Total Volume", type: "Session PR", value: `${lastWorkoutVolume}kg` }
-];
 
 type TabType = 'dashboard' | 'exercises' | 'analytics';
 
@@ -334,18 +112,130 @@ export default function DashboardPage() {
   const [selectedExercise, setSelectedExercise] = useState('Bench Press');
   const [selectedMetric, setSelectedMetric] = useState<'estimated1RM' | 'maxWeight' | 'totalVolume'>('estimated1RM');
   const [selectedSplit, setSelectedSplit] = useState<string>('All');
+  
+  // State for database data
+  const [workoutLogs, setWorkoutLogs] = useState<ProcessedWorkoutLog[]>([]);
+  const [loggedExercises, setLoggedExercises] = useState<ProcessedLoggedExercise[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch data on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch workout logs and logged exercises using server actions
+        const [workoutLogsResult, loggedExercisesResult] = await Promise.all([
+          getWorkoutLogsAction(),
+          getLoggedExercisesAction()
+        ]);
+
+        if (!workoutLogsResult.success || !loggedExercisesResult.success) {
+          throw new Error(workoutLogsResult.error || loggedExercisesResult.error || 'Failed to fetch data');
+        }
+
+        const workoutLogsData = workoutLogsResult.data;
+        const loggedExercisesData = loggedExercisesResult.data;
+        
+        // Process workout logs - convert timestamps to numbers
+        const processedWorkoutLogs: ProcessedWorkoutLog[] = workoutLogsData!;
+        
+        console.log(JSON.stringify(workoutLogsData, null, 2));
+
+        // Process logged exercises - convert timestamps and add metadata
+        const processedLoggedExercises: ProcessedLoggedExercise[] = loggedExercisesData!.map((exercise: SelectLoggedExercise) => {
+          const metadata = inferExerciseMetadata(exercise.name);
+          return {
+            ...exercise,
+            start_time: new Date(exercise.start_time).getTime(),
+            sets: Array.isArray(exercise.sets) ? exercise.sets : [],
+            ...metadata,
+          };
+        });
+
+        setWorkoutLogs(processedWorkoutLogs);
+        setLoggedExercises(processedLoggedExercises);
+      } catch (err) {
+        console.error('Error fetching workout data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load workout data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Workout Dashboard</h1>
+            <p className="text-gray-600">Loading your workout data...</p>
+          </div>
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Workout Dashboard</h1>
+            <p className="text-red-600">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate derived data from actual database data
+  // Pick the most recent workout
+  const lastWorkout = workoutLogs.sort((a, b) => b.start_time - a.start_time)[0];
+  const lastWorkoutVolume = lastWorkout ? calculateWorkoutVolume(lastWorkout.id.toString(), loggedExercises) : 0;
+  const lastWorkoutDate = lastWorkout ? new Date(lastWorkout.start_time) : new Date();
+  const lastWorkoutDuration = lastWorkout ? Math.round(lastWorkout.total_duration_seconds / 60) : 0;
+
+  // This week's activity data
+  const thisWeekData = workoutLogs
+    .map(log => ({
+      day: new Date(log.start_time).toLocaleDateString('en-US', { weekday: 'short' }),
+      volume: calculateWorkoutVolume(log.id.toString(), loggedExercises),
+      split: log.split,
+      date: new Date(log.start_time).getDate()
+    }))
+    .reverse();
+
+  // Overall stats
+  const totalWorkouts = workoutLogs.length;
+  const allTimeVolume = workoutLogs.reduce((total, log) => total + calculateWorkoutVolume(log.id.toString(), loggedExercises), 0);
+  const workoutStreak = 3; // Keep this static for now
+
+  // Personal records from last workout
+  const lastWorkoutPRs = lastWorkout ? [
+    { exercise: "Total Volume", type: "Session PR", value: `${lastWorkoutVolume}lbs` }
+  ] : [];
 
   // Get available splits
-  const availableSplits = ['All', ...Array.from(new Set(mockWorkoutLogs.map(log => log.split)))];
+  const availableSplits = ['All', ...Array.from(new Set(workoutLogs.map(log => log.split)))];
 
   // Generate analytics data based on selected split
   const generateAnalyticsData = (split: string) => {
-    const filteredExercises = filterExercisesBySplit(split);
-    const filteredLogs = filterDataBySplit(split);
+    const filteredExercises = filterExercisesBySplit(split, workoutLogs, loggedExercises);
+    const filteredLogs = filterDataBySplit(split, workoutLogs);
 
     // Calculate muscle group volume
     const muscleGroupData = filteredExercises.reduce((acc, exercise) => {
-      const volume = exercise.sets.reduce((sum, set) => sum + (set.weight_kg * set.reps), 0);
+      const volume = exercise.sets.reduce((sum, set) => sum + (set.weight_lbs * set.reps), 0);
       const group = exercise.muscle_group || 'Other';
       acc[group] = (acc[group] || 0) + volume;
       return acc;
@@ -387,11 +277,11 @@ export default function DashboardPage() {
     const performanceOverTime = filteredLogs
       .sort((a, b) => a.start_time - b.start_time)
       .map((log, index) => {
-        const volume = calculateWorkoutVolume(log.id);
-        const exercises = filteredExercises.filter(ex => ex.workout_log_id === log.id);
+        const volume = calculateWorkoutVolume(log.id.toString(), loggedExercises);
+        const exercises = filteredExercises.filter(ex => ex.workout_log_id === log.id.toString());
         const avgRPE = exercises.length > 0 
           ? exercises.reduce((sum, ex) => {
-              const avgSetRPE = ex.sets.reduce((s, set) => s + set.rpe, 0) / ex.sets.length;
+              const avgSetRPE = ex.sets.reduce((s, set) => s + (set.rpe || 0), 0) / ex.sets.length;
               return sum + avgSetRPE;
             }, 0) / exercises.length
           : 0;
@@ -472,7 +362,7 @@ export default function DashboardPage() {
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-gray-500">Total Volume</p>
-              <p className="text-2xl font-bold text-green-600">{lastWorkoutVolume.toLocaleString()}kg</p>
+              <p className="text-2xl font-bold text-green-600">{lastWorkoutVolume.toLocaleString()}lbs</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-gray-500 flex items-center gap-1">
@@ -514,7 +404,7 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4 flex justify-between text-sm text-gray-600">
               <span>{thisWeekData.length} workouts this week</span>
-              <span>Avg: {Math.round(thisWeekData.reduce((sum, d) => sum + d.volume, 0) / thisWeekData.length || 0)}kg volume</span>
+              <span>Avg: {Math.round(thisWeekData.reduce((sum, d) => sum + d.volume, 0) / thisWeekData.length || 0)}lbs volume</span>
             </div>
           </CardContent>
         </Card>
@@ -548,7 +438,7 @@ export default function DashboardPage() {
               {thisWeekData.slice(-3).map((workout, index) => (
                 <div key={index} className="text-center">
                   <p className="font-medium text-gray-900">{workout.split}</p>
-                  <p className="text-gray-500">{workout.volume}kg</p>
+                  <p className="text-gray-500">{workout.volume}lbs</p>
                 </div>
               ))}
             </div>
@@ -584,10 +474,10 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-center">
-              <p className="text-4xl font-bold text-green-600 mb-2">{(allTimeVolume / 1000).toFixed(1)}t</p>
+              <p className="text-4xl font-bold text-green-600 mb-2">{(allTimeVolume / 1000).toFixed(1)}lbs</p>
               <p className="text-sm text-gray-600">Total weight moved</p>
               <div className="mt-4 text-xs text-gray-500">
-                <p>Last 30 days: +{(lastWorkoutVolume / 1000).toFixed(1)}t</p>
+                <p>Last 30 days: +{(lastWorkoutVolume / 1000).toFixed(1)}lbs</p>
                 <p className="text-green-600">↗ +12% vs last month</p>
               </div>
             </div>
@@ -737,8 +627,8 @@ export default function DashboardPage() {
                       <p className="text-sm text-gray-500">{session.date}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-gray-600">Max: {session.maxWeight}kg</p>
-                      <p className="text-sm text-gray-600">Volume: {session.totalVolume}kg</p>
+                      <p className="text-sm text-gray-600">Max: {session.maxWeight}lbs</p>
+                      <p className="text-sm text-gray-600">Volume: {session.totalVolume}lbs</p>
                     </div>
                   </div>
                 </div>
@@ -783,7 +673,7 @@ export default function DashboardPage() {
                 {split}
                 {split !== 'All' && (
                   <span className="ml-1 text-xs opacity-75">
-                    ({filterDataBySplit(split).length})
+                    ({filterDataBySplit(split, workoutLogs).length})
                   </span>
                 )}
               </button>
@@ -820,7 +710,7 @@ export default function DashboardPage() {
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => [`${value}kg`, 'Volume']} />
+                  <Tooltip formatter={(value) => [`${value}lbs`, 'Volume']} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -921,13 +811,13 @@ export default function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <Tooltip 
                   formatter={(value, name) => {
-                    if (name === 'Total Volume (kg)') return [`${value}kg`, name];
+                    if (name === 'Total Volume (lbs)') return [`${value}lbs`, name];
                     if (name === 'Duration (min)') return [`${value}min`, name];
                     return [value, name];
                   }}
                 />
                 <Legend />
-                <Bar yAxisId="left" dataKey="totalVolume" fill="#3b82f6" name="Total Volume (kg)" />
+                <Bar yAxisId="left" dataKey="totalVolume" fill="#3b82f6" name="Total Volume (lbs)" />
                 <Line yAxisId="right" type="monotone" dataKey="avgRPE" stroke="#ef4444" strokeWidth={3} name="Avg RPE" />
                 <Line yAxisId="right" type="monotone" dataKey="workoutDuration" stroke="#10b981" strokeWidth={3} name="Duration (min)" />
               </ComposedChart>
@@ -938,7 +828,7 @@ export default function DashboardPage() {
               <div className="text-center p-3 bg-blue-50 rounded-lg">
                 <p className="font-medium text-blue-900">Total Volume</p>
                 <p className="text-blue-700">
-                  {analyticsData.performanceOverTime.reduce((sum, d) => sum + d.totalVolume, 0).toLocaleString()}kg
+                  {analyticsData.performanceOverTime.reduce((sum, d) => sum + d.totalVolume, 0).toLocaleString()}lbs
                 </p>
               </div>
               <div className="text-center p-3 bg-red-50 rounded-lg">
