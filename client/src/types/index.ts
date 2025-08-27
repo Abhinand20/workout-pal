@@ -4,12 +4,11 @@ export interface Exercise {
     id: string;
     name: string;
     target_sets: number;
-    target_reps: string; // Can be a range like "8-10" or specific number
-    target_weight_lbs?: number | null; // Optional target weight
-    rest_period_seconds?: number | null; // Optional rest time
-    tip?: string | null; // Optional tip for the exercise
-    // Add other relevant fields if your API provides them
-    focus_groups?: string[] | null; // Optional focus groups for the exercise
+    target_reps: string; // range like "8-10" or specific number
+    target_weight_lbs?: number | null; // target weight
+    rest_period_seconds?: number | null; // rest time
+    tip?: string | null; // tip for the exercise
+    focus_groups?: string[] | null; // focus groups for the exercise
   }
   
 export interface WorkoutRoutine {

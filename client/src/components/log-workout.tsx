@@ -30,7 +30,10 @@ export function WorkoutLogging({
   onCancelWorkout,
   activeSetInfo,
 }: WorkoutLoggingProps) {
-  const { routine, currentExerciseIndex, loggedData } = activeWorkout;
+  const routine = activeWorkout.routine;
+  const currentExerciseIndex = activeWorkout.currentExerciseIndex;
+  const loggedData = activeWorkout.loggedData;
+  console.log("Logged data: ", loggedData);
   const currentExercise = routine.routine[currentExerciseIndex];
   const currentLoggedExercise = loggedData[currentExerciseIndex];
 

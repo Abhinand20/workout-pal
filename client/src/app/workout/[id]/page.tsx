@@ -22,8 +22,6 @@ import { useSession } from "@/lib/auth-client";
 import { FinishedWorkout } from "@/components/finished-workout";
 import { WorkoutSplit } from "@/types/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
 async function fetchActiveWorkoutSession(
   userId: string | undefined,
   activeWorkoutSessionId: string,
@@ -31,9 +29,8 @@ async function fetchActiveWorkoutSession(
   if (!userId || !activeWorkoutSessionId) {
     throw new Error("User ID or active workout session ID is not set");
   }
-  const url = new URL(`${API_URL}/api/workout/active`);
+  const url = new URL('/api/workout/active', window.location.origin);
   url.searchParams.set("active_workout_session_id", activeWorkoutSessionId);
-  url.searchParams.set("user_id", userId);
   const response = await fetch(url.toString(), {
     method: 'GET',
     headers: {
@@ -63,7 +60,7 @@ async function updateActiveWorkoutSession(
   if (!activeWorkoutSessionId) {
     throw new Error("Active workout session ID is not set");
   }
-  const url = new URL(`${API_URL}/api/workout/active`);
+  const url = new URL('/api/workout/active', window.location.origin);
   const response = await fetch(url.toString(), {
     method: 'PUT',
     headers: {
@@ -93,7 +90,7 @@ async function deleteActiveWorkoutSession(
   if (!activeWorkoutSessionId) {
     throw new Error("Active workout session ID is not set");
   }
-  const url = new URL(`${API_URL}/api/workout/active`);
+  const url = new URL('/api/workout/active', window.location.origin);
   url.searchParams.set("active_workout_session_id", activeWorkoutSessionId);
   const response = await fetch(url.toString(), {
     method: 'DELETE',
@@ -166,13 +163,6 @@ export default function WorkoutLoggerPage() {
       router.replace("/workout");
     }
   }, [id, router, sessionData, isPending]);
-
-  // TODO: Update backend with active workout state once it changes.
-  // useEffect(() => {
-  //   if (activeWorkout) {
-  //     localStorage.setItem(WORKOUT_STATE_KEY, JSON.stringify(activeWorkout));
-  //   }
-  // }, [activeWorkout]);
 
   const handleUpdateLog = useCallback((exerciseIndex: number, setIndex: number, field: keyof LoggedSet, value: number | string) => {
      setActiveWorkout(prev => {
@@ -367,7 +357,7 @@ export default function WorkoutLoggerPage() {
     
     try {
       console.log("Sending workout log to server:", JSON.stringify(payload));
-      const response = await fetch(`${API_URL}/api/workout/log`, {
+      const response = await fetch('/api/workout/log', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

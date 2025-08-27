@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePageTitle } from '@/lib/use-page-title';
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -83,6 +84,8 @@ export default function LandingPage() {
   const router = useRouter();
   const [recommendedSplit, setRecommendedSplit] = useState<WorkoutSplit | null>(null);
   const [selectedSplit, setSelectedSplit] = useState<WorkoutSplit | ''>('');
+  
+  usePageTitle("Start Your Workout");
   const [currentDate, setCurrentDate] = useState('');
   const [greeting, setGreeting] = useState('');
 

@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, Cart
 import { Calendar, Trophy, Target, TrendingUp, Dumbbell, Clock, Activity, BarChart3, User, Filter } from 'lucide-react';
 import { SelectWorkoutLog, SelectLoggedExercise } from '@/db/schema';
 import { getWorkoutLogsAction, getLoggedExercisesAction } from '@/app/actions/workout-actions';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // Type for processed workout logs with timestamps converted to numbers
 type ProcessedWorkoutLog = SelectWorkoutLog;
@@ -112,6 +113,8 @@ export default function DashboardPage() {
   const [selectedExercise, setSelectedExercise] = useState('Bench Press');
   const [selectedMetric, setSelectedMetric] = useState<'estimated1RM' | 'maxWeight' | 'totalVolume'>('estimated1RM');
   const [selectedSplit, setSelectedSplit] = useState<string>('All');
+  
+  usePageTitle("Dashboard");
   
   // State for database data
   const [workoutLogs, setWorkoutLogs] = useState<ProcessedWorkoutLog[]>([]);

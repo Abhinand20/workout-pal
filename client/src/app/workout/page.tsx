@@ -15,16 +15,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
 import { ApiResponse, CreateActiveWorkoutSessionData, FetchWorkoutData, FetchWorkoutParams, WorkoutSplit } from '@/types/api';
 import { useSession } from '@/lib/auth-client';
+import { useWorkoutPageTitle } from '@/lib/use-page-title';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-// Fetch today's workout routine from the API.
+// Fetch today's workout routine from the Next.js API.
 async function fetchTodaysWorkout(params: FetchWorkoutParams): Promise<WorkoutRoutine> {
-  if (!API_URL) {
-    console.error("API URL is not configured.");
-    throw new Error("API URL is not configured. Cannot fetch workout.");
-  }
-  const url = new URL(`${API_URL}/api/workout/today`);
+  const url = new URL('/api/workout/today', window.location.origin);
   url.searchParams.set('split', params.split || WorkoutSplit.PUSH);
   url.searchParams.set('user_id', params.userId);
   const response = await fetch(url.toString(), {
@@ -55,7 +50,7 @@ async function addActiveWorkoutSession(
   userId: string,
   activeWorkoutSession: ActiveWorkoutState,
 ): Promise<CreateActiveWorkoutSessionData> {
-  const response = await fetch(`${API_URL}/api/workout/active`, {
+  const response = await fetch('/api/workout/active', {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ activeWorkoutSession: activeWorkoutSession, userId: userId }),
@@ -86,6 +81,9 @@ function WorkoutPage() {
   const [currentSplit, setCurrentSplit] = useState<WorkoutSplit>(WorkoutSplit.PUSH);
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkoutState | null>(null);
 
+  // Dynamic page title based on current split
+  useWorkoutPageTitle(currentSplit, "Workout");
+
 
   // --- Data Fetching ---
   const fetchWorkoutForSplit = useCallback(async (splitToFetch: WorkoutSplit) => {
@@ -94,9 +92,7 @@ function WorkoutPage() {
     try {
       var userId = sessionData?.user.id;
       if (!userId) {
-        // TODO: Remove this once we migrate off of sqlite.
-        userId = "123";
-        // throw new Error("User ID is not set");
+        throw new Error("User ID is not set");
       }
       const workout = await fetchTodaysWorkout({ split: splitToFetch, userId: userId });
       setInitialWorkoutData(workout);

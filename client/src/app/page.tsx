@@ -8,6 +8,12 @@ import {
 } from "@/components/ui/dialog"
 import SignIn from "@/components/sign-in";
 import SignUp from "@/components/sign-up";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Welcome",
+  description: "Welcome to Workout Pal - Your AI-powered fitness companion. Generate personalised routines, log every set and watch your progress sky-rocket.",
+};
 
 export default function MarketingLanding() {
   return (
