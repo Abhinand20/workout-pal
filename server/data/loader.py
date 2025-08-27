@@ -1,11 +1,10 @@
 import json
 from sqlalchemy.orm import Session
 from data.schema import Exercise, Base
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine
 
-def load_exercises_from_json(json_path: str, db_path: str = "sqlite:///exercises.db"):
+def load_exercises_from_json(json_path: str, engine: Engine):
     # Setup DB
-    engine = create_engine(db_path)
     Base.metadata.create_all(engine)
     session = Session(bind=engine)
 
@@ -33,6 +32,3 @@ def load_exercises_from_json(json_path: str, db_path: str = "sqlite:///exercises
     session.commit()
     session.close()
     print("✅ Exercises loaded into database.")
-
-if __name__ == "__main__":
-    load_exercises_from_json("exercises.json")

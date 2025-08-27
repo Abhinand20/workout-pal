@@ -1,4 +1,4 @@
-import { WorkoutRoutine, Exercise, LoggedExercise } from './index';
+import { WorkoutRoutine, Exercise, LoggedExercise, ActiveWorkoutState } from './index';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -23,6 +23,7 @@ export enum WorkoutSplit {
 // Request parameters
 export interface FetchWorkoutParams {
   split?: WorkoutSplit;
+  userId: string;
   // Add other potential filtering/input parameters here
   // For example: date?: string; (if fetching for a specific date other than today)
 }
@@ -57,6 +58,7 @@ export interface LogWorkoutRequest {
   totalDurationSeconds?: number; // Total time spent on the workout in seconds
   notes?: string; // Overall notes for the logged workout session
   split: WorkoutSplit; // The split of the workout
+  userId: string | undefined;
 }
 
 export interface LogWorkoutData {
@@ -65,3 +67,36 @@ export interface LogWorkoutData {
   // Potentially return some summary or achievements if applicable
 }
 // The full API response will be: ApiResponse<LogWorkoutData>
+
+
+// CRUD operations for ActiveWorkoutSession.
+// TODO: Add JWT token instead of userId.
+export interface CreateActiveWorkoutSessionRequest {
+  activeWorkoutSession: ActiveWorkoutState;
+  userId: string;
+}
+
+export interface CreateActiveWorkoutSessionData {
+  active_workout_session_id: string;
+}
+
+export interface GetActiveWorkoutSessionRequest {
+  active_workout_session_id: string;
+}
+
+export interface GetActiveWorkoutSessionData {
+  activeWorkoutSession: ActiveWorkoutState;
+}
+
+export interface UpdateActiveWorkoutSessionRequest {
+  activeWorkoutSessionId: string;
+  activeWorkoutState: ActiveWorkoutState;
+}
+
+export interface UpdateActiveWorkoutSessionData {
+  activeWorkoutSessionId: string;
+}
+
+export interface DeleteActiveWorkoutSessionRequest {
+  activeWorkoutSessionId: string;
+}

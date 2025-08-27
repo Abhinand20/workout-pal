@@ -1,6 +1,7 @@
 from google import genai
 from google.genai import types
 from typing import Dict, Any, Optional
+import random
 
 from config.config import ConfigManager
 from llm.base import LLMClient
@@ -52,13 +53,14 @@ class GeminiClient(LLMClient):
         """
         if kwargs.get("response_schema") is None:
             raise ValueError("response_schema is required")
-        print(f"Generating content with Gemini model: {self.gemini_config.model}")
         response_schema = kwargs.get("response_schema")
+        random_temp = random.uniform(1.0, 2.0)
+        print(f"Generating content with Gemini model: {self.gemini_config.model} with temperature: {random_temp}")
         response = await self.client.aio.models.generate_content(
             model=self.gemini_config.model,
             contents=prompt,
             config=types.GenerateContentConfig(
-                temperature=self.gemini_config.temperature,
+                temperature=random_temp,
                 max_output_tokens=self.gemini_config.max_tokens,
                 system_instruction=system_prompt,
                 response_mime_type="application/json",

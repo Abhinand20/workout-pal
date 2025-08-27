@@ -1,7 +1,7 @@
 # server/services/llm_service.py
-from typing import Dict, Optional, Type
+from typing import Dict, Optional, List
 
-from models import WorkoutSplit, WorkoutRoutine
+from models import WorkoutSplit, WorkoutRoutine, LoggedExercise
 from llm.base import LLMClient
 from llm.gemini_client import GeminiClient
 from llm.agents.base_agent import BaseAgent
@@ -33,12 +33,13 @@ class LLMService:
         for agent_name, agent in self.agents.items():
             agent.llm_client = client
     
-    async def generate_workout(self, prompt: str, split: Optional[WorkoutSplit] = None, **kwargs) -> WorkoutRoutine:
+    async def generate_workout(self, user_preferences: str, user_workout_history: Optional[List[LoggedExercise]] = None, split: Optional[WorkoutSplit] = None, **kwargs) -> WorkoutRoutine:
         """
         Generate a workout routine.
         
         Args:
-            prompt: User preferences
+            user_preferences: User preferences
+            user_workout_history: User workout history
             split: Workout split type
             **kwargs: Additional parameters for the agent
             
@@ -46,5 +47,5 @@ class LLMService:
             A generated workout routine
         """
         workout_agent = self.agents["workout_generator"]
-        return await workout_agent.execute(prompt=prompt, split=split, **kwargs)
+        return await workout_agent.execute(user_preferences=user_preferences, user_workout_history=user_workout_history, split=split, **kwargs)
 

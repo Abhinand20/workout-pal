@@ -7,7 +7,7 @@ import os
 class GeminiConfig(BaseModel):
     """Gemini configuration settings."""
     api_key: str = Field(..., description="Gemini API key")
-    model: str = Field(default="gemini-2.5-flash-preview-04-17", description="Gemini model to use")
+    model: str = Field(default="gemini-2.5-flash", description="Gemini model to use")
     temperature: Optional[float] = Field(default=None, description="Model temperature")
     max_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate")
 
@@ -21,7 +21,6 @@ class ServerConfig(BaseModel):
 class DataConfig(BaseModel):
     """Data source configuration settings."""
     source_file: str = Field(default="data/exercises.json", description="Path to the data source file")
-    vector_store_path: str = Field(default="data/vector_store", description="Path to store the vector database")
 
 class Config(BaseModel):
     """Main configuration class that combines all config sections."""
@@ -49,7 +48,7 @@ class ConfigManager:
 
         gemini_config = GeminiConfig(
             api_key=os.getenv("GEMINI_API_KEY", ""),
-            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-preview-04-17"),
+            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
             temperature=os.getenv("GEMINI_TEMPERATURE", None),
             max_tokens=os.getenv("GEMINI_MAX_TOKENS", None)
         )
@@ -64,8 +63,7 @@ class ConfigManager:
 
         # Load data config
         data_config = DataConfig(
-            source_file=os.getenv("DATA_SOURCE_FILE", "src/scraper/data.json"),
-            vector_store_path=os.getenv("VECTOR_STORE_PATH", "src/data/vector_store")
+            source_file=os.getenv("DATA_SOURCE_FILE", "data/exercises.json"),
         )
 
         self._config = Config(
